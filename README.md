@@ -22,7 +22,8 @@ scenarios/
   z2ui5_test_lock_04.clas.abap   Scenario 4 — Enqueue + Optimistic (recommended)
   z2ui5_test_lock_05.clas.abap   Scenario 5 — Stateful session
   z2ui5_test_lock_06.clas.abap   Scenario 6 — Soft lock (advisory)
-  scenario_07_rap_draft.abap     Scenario 7 — RAP draft (BDEF + EML)
+  scenario_07_rap_draft.abap     Scenario 7 — RAP draft (own BO: BDEF + EML)
+  z2ui5_test_lock_09.clas.abap   Scenario 9 — Standard SAP BO draft via EML
 
 platform-lock-manager/
   z2ui5_test_lock_08.clas.abap   Scenario 8 — Platform lock manager demo
@@ -153,17 +154,19 @@ See [`scenarios/z2ui5_test_lock_06.clas.abap`](scenarios/z2ui5_test_lock_06.clas
 
 ---
 
-## 8. Scenario 7 — RAP draft (the modern alternative)
+## 8. Scenario 7 — RAP draft (your own BO)
 
 **Source:** [`scenarios/scenario_07_rap_draft.abap`](scenarios/scenario_07_rap_draft.abap)
 
-If you are on **S/4HANA** or **BTP ABAP Environment (Steampunk)**, the canonical pattern is no longer "hold a lock during edit." Instead you create a **draft instance** of the sales order in a framework-managed shadow table. The active record is untouched until the user explicitly activates.
+If you are on **S/4HANA** or **BTP ABAP Environment (Steampunk)** and you are building **your own** business object on top of a Z table, the canonical pattern is no longer "hold a lock during edit." You define a draft-enabled BO: SAP creates a draft instance in a framework-managed shadow table, and the active record is untouched until the user explicitly activates.
 
 This sidesteps the whole lock-during-think-time problem.
 
-The linked file contains both the RAP **behaviour definition** (BDEF) and an example abap2UI5 **EML** call from an event handler.
+The linked file contains both the RAP **behaviour definition** (BDEF — `draft table zsalesorder_d`, `lock master`, …) and an example abap2UI5 **EML** call from an event handler.
 
-**Key idea:** the framework handles ETag checks, draft persistence, and the activation enqueue **for you**. abap2UI5 just calls the BO methods. For non-trivial editing apps on a modern stack, this is usually the cleanest choice.
+**Why a Z draft table?** A draft table mirrors the *structure* of its active table plus a handful of draft-administration fields. It is always BO-specific — there is no generic SAP draft pool you can plug an arbitrary entity into. You only need one if you are defining your own BO. If a suitable **standard SAP BO already exists**, do not build your own — see Scenario 9.
+
+**Key idea:** the framework handles ETag checks, draft persistence, and the activation enqueue **for you**. abap2UI5 just calls the BO methods. For non-trivial editing apps on a modern stack, this is usually the cleanest choice — when you actually need a custom BO.
 
 For a full draft workflow (Edit → multiple round-trips on the draft → Activate), see the official [SAP RAP documentation](https://help.sap.com/docs/abap-cloud/abap-rap/draft).
 
@@ -192,7 +195,34 @@ Method names vary across platforms — common shapes are `lock( )` / `unlock( )`
 
 ---
 
-## 10. Side-by-side comparison
+## 10. Scenario 9 — Standard SAP BO draft via EML
+
+**Source:** [`scenarios/z2ui5_test_lock_09.clas.abap`](scenarios/z2ui5_test_lock_09.clas.abap)
+
+If the business object you want to edit is **already shipped by SAP as a draft-enabled BO** (e.g. `I_SalesOrderTP` on S/4HANA), you should not build your own BO and you do not create a draft table. SAP ships both. Your abap2UI5 app simply calls the standard BO via EML.
+
+The flow the user sees in the demo class:
+
+```
+on_init              -> Edit       (create or resume the draft)
+"Save Draft" pressed -> UPDATE     (writes the draft only, VBAK stays as-is)
+"Save Draft" again   -> UPDATE     (still draft)
+...
+"Activate" pressed   -> Activate   (now VBAK is written through)
+"Discard" pressed    -> Discard    (drops the draft, releases lock)
+```
+
+**When to use this:**
+- The business object you need is already a released, draft-enabled SAP BO
+- You want classic Fiori-style "edit a draft, activate later" UX in an abap2UI5 app
+
+**Key idea:** the session can stay **stateless**. The draft survives between roundtrips in SAP's own draft-shadow table. The lock is held by the BO framework as long as the draft exists — closing the browser without activating or discarding leaves the draft so the same user can resume it on the next visit. No `set_session_stateful( )`, no `ENQUEUE_*`, no custom Z table — SAP does all of that.
+
+**Caveat:** field names (`SalesOrder`, `SalesOrderType`) match the released `I_SalesOrderTP` on current S/4HANA. On older releases the BO name or fields may differ — check the released-objects list in your system.
+
+---
+
+## 11. Side-by-side comparison
 
 | Scenario | SM12 entry during edit | Pins WP | Survives browser close | Conflict detection | Complexity |
 |---|---|---|---|---|---|
@@ -202,12 +232,13 @@ Method names vary across platforms — common shapes are `lock( )` / `unlock( )`
 | 4 **Enqueue + Optimistic** | only at save | no | — | at save (reliable) | low |
 | 5 Stateful session | yes, full duration | **yes** | dies on timeout | at open | medium |
 | 6 Soft lock + save guard | only at save | no | row lingers | UX at open + data at save | medium |
-| 7 RAP draft | only at activate | no | **draft persists** | framework handles it | medium (BO modelling) |
+| 7 RAP draft (own BO) | only at activate | no | **draft persists** | framework handles it | medium (BO modelling) |
 | 8 **Platform lock manager** | only at save | no | auto-expires via heartbeat | UX at open + data at save | low (if platform ships one) |
+| 9 **Standard BO draft via EML** | held while draft exists | no | **draft persists, user can resume** | framework handles it | low (no BO to build) |
 
 ---
 
-## 11. Choosing a strategy
+## 12. Choosing a strategy
 
 Use this flow:
 
@@ -215,8 +246,11 @@ Use this flow:
 Does the app edit data at all?
 ├── No → render as read-only (every input with enabled = abap_false)
 └── Yes
-    ├── On modern S/4 / Steampunk and editing a non-trivial business object?
-    │   └── Scenario 7 (RAP draft)
+    ├── On modern S/4 / Steampunk?
+    │   ├── A released, draft-enabled SAP BO already covers this object?
+    │   │   └── Scenario 9 (Standard BO draft via EML)
+    │   └── Editing a non-trivial CUSTOM business object?
+    │       └── Scenario 7 (RAP draft, own BO)
     ├── Does your platform ship a lock manager class?
     │   └── Scenario 8 (Platform lock manager)
     ├── Need "locked by X" feedback at open?
@@ -228,18 +262,18 @@ Does the app edit data at all?
 
 ---
 
-## 12. Common gotchas
+## 13. Common gotchas
 
 - **Don't hold an enqueue across roundtrips without `set_session_stateful( )`.** It will be silently released the moment the HTTP response is sent.
 - **Always release the enqueue on every code path** — both success and error. A leaked enqueue blocks future users until session timeout.
 - **Soft locks need cleanup.** Without a reaper job or `onbeforeunload` release, you will accumulate stale "edited by" rows.
 - **Optimistic timestamps require a field that always updates.** If anyone writes to `VBAK` bypassing `AEDAT/AEZET`, your check will miss real conflicts. Prefer a real timestamp column (`UPDATE_TMSTMP`) when available.
 - **Statefulness is contagious.** Once `set_session_stateful( )` is on, every roundtrip costs a work process slot until you turn it off again. Always pair it with an explicit `set_session_stateful( abap_false )` on exit.
-- **Always include the optimistic check.** It is the only mechanism that catches conflicts originating *outside* your app (SE16, batch, RFC, another transaction).
+- **Always include the optimistic check** in non-draft scenarios. It is the only mechanism that catches conflicts originating *outside* your app (SE16, batch, RFC, another transaction). Draft-enabled BOs (Scenarios 7 and 9) handle this for you via the framework's ETag.
 
 ---
 
-## 13. Summary
+## 14. Summary
 
 | If you need... | Use |
 |---|---|
@@ -249,7 +283,8 @@ Does the app edit data at all?
 | Stateless edits, production-grade default | **Scenario 4** |
 | GUI-like "lock on open" for internal apps | Scenario 5 |
 | UX feedback "locked by Alice" via your own Z table | Scenario 6 |
-| Modern S/4 / cloud, non-trivial edits, resumable drafts | **Scenario 7** |
+| Custom BO, modern S/4 / cloud, non-trivial edits, resumable drafts | **Scenario 7** |
 | Platform already ships a lock manager — use the standard | **Scenario 8** |
+| A released, draft-enabled SAP BO already exists — just consume it | **Scenario 9** |
 
-There is no single "best" lock strategy — only the one that fits your scenario. Start with **Scenario 4** as the safe stateless default; if your platform ships a lock manager, prefer **Scenario 8** for consistency with the rest of the platform; reach for the others when the requirements push you there.
+There is no single "best" lock strategy — only the one that fits your scenario. On a modern S/4 / Steampunk stack, the first question is "does a released SAP BO already cover this object?" — if yes, **Scenario 9** is almost always the right answer. Otherwise start with **Scenario 4** as the safe stateless default; if your platform ships a lock manager, prefer **Scenario 8**; reach for the others when the requirements push you there.
