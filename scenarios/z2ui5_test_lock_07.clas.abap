@@ -1,4 +1,4 @@
-* Scenario 9 — Consume a standard SAP draft-enabled BO via EML
+* Scenario 7 — Consume a standard SAP draft-enabled BO via EML
 *
 * You are on S/4HANA or BTP ABAP Environment. The sales order is
 * already exposed by SAP as a draft-enabled BO (I_SalesOrderTP). You
@@ -23,7 +23,7 @@
 * BO name or fields may differ — check the released-objects list in
 * your system.
 
-CLASS z2ui5_test_lock_09 DEFINITION PUBLIC.
+CLASS z2ui5_test_lock_07 DEFINITION PUBLIC.
 
   PUBLIC SECTION.
     INTERFACES z2ui5_if_app.
@@ -48,7 +48,7 @@ CLASS z2ui5_test_lock_09 DEFINITION PUBLIC.
 ENDCLASS.
 
 
-CLASS z2ui5_test_lock_09 IMPLEMENTATION.
+CLASS z2ui5_test_lock_07 IMPLEMENTATION.
 
   METHOD z2ui5_if_app~main.
 
