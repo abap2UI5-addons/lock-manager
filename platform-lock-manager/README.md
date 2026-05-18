@@ -63,6 +63,7 @@ FUNCTION Z_REQUEST_LOCKING
   IMPORTING
     VALUE(WA_HEADER)        TYPE  ZS_LOCK_HEADER
     VALUE(CLIENT_DEPENDENT) TYPE  CHAR1 DEFAULT 'X'
+    VALUE(TTL_SECONDS)      TYPE  I     DEFAULT 1800
 
   EXPORTING
     VALUE(MSG_CODE)         TYPE  STRING
@@ -79,6 +80,32 @@ FUNCTION Z_REQUEST_LOCKING
 On `MSG_TYPE = 'E'` the caller should treat the request as failed and
 display `MSG_DESCRIPTION` to the user. On a foreign lock,
 `MSG_DESCRIPTION` contains the current owner and the lock time.
+
+`TTL_SECONDS` controls how long a registry entry is considered valid.
+After it elapses, the next lock request from any user overwrites the
+old row — that is how the manager recovers from browser crashes that
+left a stale lock behind. Default is 1800 seconds (30 minutes).
+
+## How locks survive a session
+
+The kernel SAP enqueue (`ENQUEUE_*`) is bound to the session that
+acquired it. In a stateless abap2UI5 app, that session ends with the
+HTTP roundtrip — so the kernel lock is gone right after the call
+returns. That is unavoidable without `set_session_stateful( )`.
+
+What carries the lock across sessions is the **registry table**
+`ZTLOCK_REGISTRY`. A row inserted on a successful `ENQUEUE_*` is a
+normal database record and survives session termination, work-process
+recycling, even an app server restart. The function module reads the
+registry **before** it touches the kernel, so a still-registered lock
+from a long-finished session keeps blocking new attempts — exactly the
+"who is editing this?" behaviour callers want. Cleanup is handled by
+the `TTL_SECONDS` expiry; no background job required.
+
+To keep the platform manager's kernel enqueues isolated from any
+other enqueues the caller is holding, the kernel FM is invoked via
+`DESTINATION 'NONE'`, so it runs in its own RFC session and shows up
+under its own lock owner in SM12.
 
 ## How a consumer uses it
 

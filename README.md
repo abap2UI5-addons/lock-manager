@@ -226,6 +226,8 @@ To unlock the same object you flip `function` to `DEQUEUE_EVVBAK` and `process` 
 
 **Key idea:** the wrapper hides the persistence table and the lookup behind a single FM. Your app just asks "can I have a lock on `VBAK / 0000004711`?" and gets back a clear yes/no plus, on a foreign lock, the owner and timestamp ready to display. You still pair it with the optimistic timestamp check at save time, because the registry is advisory at the UX layer — the database-level guard at save is still your responsibility.
 
+**Persistence across sessions:** the kernel `ENQUEUE_*` is bound to the calling session and dies with the HTTP roundtrip — that is true of every stateless ABAP web call. What carries the lock across sessions is the `ZTLOCK_REGISTRY` row, which is a normal DB record and survives session termination. The wrapper reads the registry **before** it touches the kernel, so a still-registered lock from a long-finished session keeps blocking new attempts. A `TTL_SECONDS` parameter (default 30 minutes) lets expired entries get overwritten automatically, so a browser crash does not leave a permanent block. The kernel call itself goes through `DESTINATION 'NONE'` to keep the manager's enqueues isolated from anything else the caller may be holding.
+
 ---
 
 ## 10. Side-by-side comparison
