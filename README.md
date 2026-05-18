@@ -155,36 +155,7 @@ See [`scenarios/z2ui5_test_lock_06.clas.abap`](scenarios/z2ui5_test_lock_06.clas
 
 ---
 
-## 8. Scenario 7 — Standard SAP BO draft via EML
 
-**Source:** [`scenarios/z2ui5_test_lock_07.clas.abap`](scenarios/z2ui5_test_lock_07.clas.abap)
-
-If you are on **S/4HANA** or **BTP ABAP Environment (Steampunk)** and the business object you want to edit is already shipped by SAP as a draft-enabled BO (e.g. `I_SalesOrderTP`), you do not build your own BO and you do not create a draft table. SAP ships both. Your abap2UI5 app simply calls the standard BO via EML.
-
-This sidesteps the whole lock-during-think-time problem.
-
-The flow the user sees in the demo class:
-
-```
-on_init              -> Edit       (create or resume the draft)
-"Save Draft" pressed -> UPDATE     (writes the draft only, VBAK stays as-is)
-"Save Draft" again   -> UPDATE     (still draft)
-...
-"Activate" pressed   -> Activate   (now VBAK is written through)
-"Discard" pressed    -> Discard    (drops the draft, releases lock)
-```
-
-**When to use this:**
-- The business object you need is already a released, draft-enabled SAP BO
-- You want classic Fiori-style "edit a draft, activate later" UX in an abap2UI5 app
-
-**Key idea:** the session can stay **stateless**. The draft survives between roundtrips in SAP's own draft-shadow table. The lock is held by the BO framework as long as the draft exists — closing the browser without activating or discarding leaves the draft so the same user can resume it on the next visit. No `set_session_stateful( )`, no `ENQUEUE_*`, no custom Z table — SAP does all of that.
-
-**Caveat:** field names (`SalesOrder`, `SalesOrderType`) match the released `I_SalesOrderTP` on current S/4HANA. On older releases the BO name or fields may differ — check the released-objects list in your system.
-
-**If no standard BO exists** for your object — for instance because you are editing a custom Z business object — you would have to define your own draft-enabled RAP BO (with its own `draft table z…_d`, `lock master`, etc.) and consume that via EML in the same way. That is a separate topic; see the official [SAP RAP draft documentation](https://help.sap.com/docs/abap-cloud/abap-rap/draft).
-
----
 
 ## 9. Scenario 8 — Platform lock manager
 
