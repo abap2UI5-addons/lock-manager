@@ -23,9 +23,11 @@ scenarios/
   z2ui5_test_lock_05.clas.abap   Scenario 5 — Stateful session
   z2ui5_test_lock_06.clas.abap   Scenario 6 — Soft lock (advisory)
   z2ui5_test_lock_07.clas.abap   Scenario 7 — Standard SAP BO draft via EML
+  z2ui5_test_lock_08.clas.abap   Scenario 8 — Platform lock manager (demo)
 
 platform-lock-manager/
-  z2ui5_test_lock_08.clas.abap   Scenario 8 — Platform lock manager demo
+  README.md                      DDIC setup + function module interface
+  z_request_locking.fugr.abap    Reusable lock-handling function module
 ```
 
 ---
@@ -186,24 +188,43 @@ on_init              -> Edit       (create or resume the draft)
 
 ## 9. Scenario 8 — Platform lock manager
 
-**Source:** [`platform-lock-manager/z2ui5_test_lock_08.clas.abap`](platform-lock-manager/z2ui5_test_lock_08.clas.abap)
+**Source (consumer):** [`scenarios/z2ui5_test_lock_08.clas.abap`](scenarios/z2ui5_test_lock_08.clas.abap)
+**Source (implementation):** [`platform-lock-manager/`](platform-lock-manager/) — see the README in that folder for the DDIC setup and the function-module interface.
 
-If your installation ships with a **platform lock manager** — a reusable class that wraps `ENQUEUE_*` / `DEQUEUE_*` and a persistence table behind a single API — you should usually prefer it over rolling your own enqueue + soft-lock combo by hand. The platform manager typically gives you:
+If your installation ships with a **platform lock manager** — a reusable wrapper around `ENQUEUE_*` / `DEQUEUE_*` plus a persistence table — prefer it over rolling your own enqueue + soft-lock combo by hand. This repo ships one such wrapper as a working example. It gives you:
 
-- A **single API** for both transient (`ENQUEUE_*`) and persistent (Z-table-backed) locks
-- Automatic **heartbeat / expiry**, so a crashed browser does not leave a permanent lock
-- A **uniform "locked by X since Y" lookup** that any app on the platform can consume
-- Built-in **lock-by-key** for arbitrary business object types, not just standard SAP enqueue objects
+- A **single API** (one function module, `Z_REQUEST_LOCKING`) for any kernel enqueue object
+- A persistent **`ZTLOCK_REGISTRY` table** carrying every active lock with object type, key, owner and timestamp
+- A **uniform "locked by X since Y" lookup** — the FM itself returns the owner in `msg_description` on a foreign lock
+- **Lock-by-key** for arbitrary business object types, not just standard SAP enqueue objects
 
-Method names vary across platforms — common shapes are `lock( )` / `unlock( )` / `check( )` / `get_info( )` on a class like `cl_platform_lock_manager` (often invoked via singleton, e.g. `cl_platform_lock_manager=>get_instance( )`). The linked file uses generic placeholders; swap in whatever your platform actually exposes.
+The call shape is always the same:
+
+```abap
+wa_header-obj_type = 'VBAK'.
+wa_header-obj_key  = vbeln.
+wa_header-function = 'ENQUEUE_EVVBAK'.   " or DEQUEUE_EVVBAK
+wa_header-process  = 'E'.                " or 'D'
+
+" pass the kernel FM's parameters as rows
+APPEND VALUE #( name = 'VBELN' type = 'VBAK-VBELN' value = vbeln ) TO it_parameters.
+...
+
+CALL FUNCTION 'Z_REQUEST_LOCKING'
+  EXPORTING wa_header = wa_header
+            client_dependent = 'X'
+  IMPORTING msg_type = msg_type
+            msg_description = msg_description
+  TABLES    it_parameters = it_parameters.
+```
+
+To unlock the same object you flip `function` to `DEQUEUE_EVVBAK` and `process` to `'D'` — same parameters table.
 
 **When to use this:**
-- Your platform already provides one — using it makes your app consistent with every other app on that platform (single SM12-equivalent overview, single admin tool to clear stuck locks)
-- You want soft-lock semantics (Scenario 6) without writing the Z table, the cleanup job, and the heartbeat logic yourself
+- Your platform already provides one — using it makes your app consistent with every other app on that platform (single overview of who locks what, single admin tool to clear stuck locks)
+- You want soft-lock semantics (Scenario 6) without writing the Z table, the lookup, and the cleanup logic yourself
 
-**Key idea:** the platform lock manager hides the persistence table, the heartbeat, and the expiry policy behind a single API. Your app just asks "can I have a lock on `SALES_ORDER` / `0000004711`?" and gets a clear yes/no with an owner and timestamp. You still pair it with `ENQUEUE_EVVBAK` + the optimistic check at save time, because the platform lock is advisory at the UX layer — the database-level guard at save is still your responsibility.
-
-**Heartbeat note:** the `lock_heartbeat( )` call in the fallthrough branch of `main` keeps the lock alive on every roundtrip. If the browser dies, the heartbeat stops and the lock auto-expires after `ttl_seconds`.
+**Key idea:** the wrapper hides the persistence table and the lookup behind a single FM. Your app just asks "can I have a lock on `VBAK / 0000004711`?" and gets back a clear yes/no plus, on a foreign lock, the owner and timestamp ready to display. You still pair it with the optimistic timestamp check at save time, because the registry is advisory at the UX layer — the database-level guard at save is still your responsibility.
 
 ---
 

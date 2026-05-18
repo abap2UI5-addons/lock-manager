@@ -1,25 +1,21 @@
 * Scenario 8 — Platform lock manager
 *
-* If your installation ships with a platform lock manager — a reusable
-* class that wraps ENQUEUE_* / DEQUEUE_* and a persistence table
-* behind a single API — prefer it over rolling your own enqueue +
-* soft-lock combo by hand.
+* Uses the reusable function module Z_REQUEST_LOCKING (see folder
+* ../platform-lock-manager/) instead of calling ENQUEUE_EVVBAK and
+* DEQUEUE_EVVBAK directly. The wrapper:
+*   - dispatches to the kernel enqueue/dequeue FM dynamically,
+*   - keeps a persistent ZTLOCK_REGISTRY row of "who is editing what",
+*   - returns the current owner in msg_description on a foreign lock.
 *
-* A platform lock manager typically gives you:
-*   - A single API for both transient (ENQUEUE_*) and persistent
-*     (Z-table-backed) locks
-*   - Automatic heartbeat / expiry, so a crashed browser does not
-*     leave a permanent lock
-*   - A uniform "locked by X since Y" lookup that any app on the
-*     platform can consume
-*   - Lock-by-key for arbitrary business object types
+* When to use this:
+*   - Your platform already ships such a wrapper — use it everywhere
+*     for a uniform "locked by X since Y" overview.
+*   - You want soft-lock semantics without writing the Z table, the
+*     cleanup logic, and the lookup query yourself.
 *
-* Method names vary across platforms — common shapes are lock( ) /
-* unlock( ) / check( ) / get_info( ) on a class like
-* cl_platform_lock_manager (often invoked via singleton, e.g.
-* cl_platform_lock_manager=>get_instance( ) ). The example below uses
-* generic placeholders; swap in whatever your platform actually
-* exposes.
+* Pair with the optimistic timestamp check at save time. The wrapper
+* keeps the UX-level lock honest; the timestamp check protects the
+* database from anything that bypasses your app.
 
 CLASS z2ui5_test_lock_08 DEFINITION PUBLIC.
 
@@ -37,16 +33,22 @@ CLASS z2ui5_test_lock_08 DEFINITION PUBLIC.
   PROTECTED SECTION.
     DATA client TYPE REF TO z2ui5_if_client.
 
-    CONSTANTS c_object_type TYPE string VALUE `SALES_ORDER`.
+    CONSTANTS c_object_type TYPE char30 VALUE 'VBAK'.
 
     METHODS on_init.
     METHODS on_event_save.
     METHODS on_event_release.
-    METHODS lock_acquire.
-    METHODS lock_release.
-    METHODS lock_heartbeat.
+
+    METHODS request_lock
+      IMPORTING
+        process         TYPE c
+      EXPORTING
+        success         TYPE abap_bool
+        msg_description TYPE string.
+
     METHODS view_display.
     METHODS data_read.
+
   PRIVATE SECTION.
 ENDCLASS.
 
@@ -63,8 +65,6 @@ CLASS z2ui5_test_lock_08 IMPLEMENTATION.
       on_event_save( ).
     ELSEIF client->check_on_event( `RELEASE` ).
       on_event_release( ).
-    ELSE.
-      lock_heartbeat( ).
     ENDIF.
 
   ENDMETHOD.
@@ -72,74 +72,57 @@ CLASS z2ui5_test_lock_08 IMPLEMENTATION.
 
   METHOD on_init.
 
-    lock_acquire( ).
+    request_lock(
+      EXPORTING
+        process         = 'E'
+      IMPORTING
+        success         = DATA(ok)
+        msg_description = DATA(why) ).
+
+    IF ok = abap_true.
+      editable    = abap_true.
+      lock_status = `Editing`.
+    ELSE.
+      editable    = abap_false.
+      lock_status = why.
+    ENDIF.
+
     data_read( ).
     view_display( ).
 
   ENDMETHOD.
 
 
-  METHOD lock_acquire.
+  METHOD request_lock.
 
-    DATA(lock_mgr) = cl_platform_lock_manager=>get_instance( ).
+    " Builds the call to Z_REQUEST_LOCKING. Same parameters table for
+    " lock ('E') and unlock ('D'); only the FUNCTION and PROCESS differ.
 
-    DATA lock_owner TYPE string.
-    DATA locked_at  TYPE timestampl.
+    DATA wa_header     TYPE zs_lock_header.
+    DATA it_parameters TYPE STANDARD TABLE OF zs_lock_param.
 
-    lock_mgr->check(
+    wa_header-obj_type = c_object_type.
+    wa_header-obj_key  = vbeln.
+    wa_header-process  = process.
+    wa_header-function = COND #( WHEN process = 'E' THEN 'ENQUEUE_EVVBAK' ELSE 'DEQUEUE_EVVBAK' ).
+
+    APPEND VALUE #( name = 'MODE_VBAK' type = 'CHAR1'      value = 'E' )           TO it_parameters.
+    APPEND VALUE #( name = 'MANDT'     type = 'MANDT'      value = sy-mandt )      TO it_parameters.
+    APPEND VALUE #( name = 'VBELN'     type = 'VBAK-VBELN' value = vbeln )         TO it_parameters.
+
+    DATA msg_type TYPE c LENGTH 1.
+
+    CALL FUNCTION 'Z_REQUEST_LOCKING'
       EXPORTING
-        object_type = c_object_type
-        object_key  = CONV string( vbeln )
+        wa_header        = wa_header
+        client_dependent = 'X'
       IMPORTING
-        owner       = lock_owner
-        locked_at   = locked_at ).
+        msg_type         = msg_type
+        msg_description  = msg_description
+      TABLES
+        it_parameters    = it_parameters.
 
-    IF lock_owner IS NOT INITIAL AND lock_owner <> sy-uname.
-
-      editable    = abap_false.
-      lock_status = |Locked by { lock_owner } since { locked_at TIMESTAMP = USER }|.
-      RETURN.
-
-    ENDIF.
-
-    TRY.
-
-        lock_mgr->lock(
-          object_type = c_object_type
-          object_key  = CONV string( vbeln )
-          ttl_seconds = 1800 ).
-
-        editable    = abap_true.
-        lock_status = `Editing`.
-
-      CATCH cx_platform_lock_failed.
-
-        editable    = abap_false.
-        lock_status = `Could not acquire lock`.
-
-    ENDTRY.
-
-  ENDMETHOD.
-
-
-  METHOD lock_heartbeat.
-
-    IF editable = abap_false.
-      RETURN.
-    ENDIF.
-
-    cl_platform_lock_manager=>get_instance( )->refresh(
-      object_type = c_object_type
-      object_key  = CONV string( vbeln ) ).
-
-  ENDMETHOD.
-
-
-  METHOD lock_release.
-
-    cl_platform_lock_manager=>get_instance( )->unlock(
-      object_type = c_object_type
-      object_key  = CONV string( vbeln ) ).
+    success = COND #( WHEN msg_type = 'S' THEN abap_true ELSE abap_false ).
 
   ENDMETHOD.
 
@@ -161,21 +144,8 @@ CLASS z2ui5_test_lock_08 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    CALL FUNCTION 'ENQUEUE_EVVBAK'
-      EXPORTING
-        mode_vbak      = `E`
-        mandt          = sy-mandt
-        vbeln          = vbeln
-      EXCEPTIONS
-        foreign_lock   = 1
-        system_failure = 2
-        OTHERS         = 3.
-
-    IF sy-subrc <> 0.
-      client->message_box_display( `Could not acquire enqueue` ).
-      RETURN.
-    ENDIF.
-
+    " Optimistic timestamp guard — catches anything that bypassed the
+    " platform lock (SE16, batch job, classic GUI).
     DATA current_aedat TYPE vbak-aedat.
     DATA current_aezet TYPE vbak-aezet.
 
@@ -185,16 +155,11 @@ CLASS z2ui5_test_lock_08 IMPLEMENTATION.
       INTO ( @current_aedat, @current_aezet ).
 
     IF current_aedat <> token_aedat OR current_aezet <> token_aezet.
-
-      CALL FUNCTION 'DEQUEUE_EVVBAK'
-        EXPORTING
-          mode_vbak = `E`
-          mandt     = sy-mandt
-          vbeln     = vbeln.
-
+      request_lock( EXPORTING process = 'D'
+                    IMPORTING success         = DATA(unused_ok)
+                              msg_description = DATA(unused_msg) ).
       client->message_box_display( `Record changed by another user. Please refresh.` ).
       RETURN.
-
     ENDIF.
 
     UPDATE vbak
@@ -204,13 +169,10 @@ CLASS z2ui5_test_lock_08 IMPLEMENTATION.
       WHERE vbeln = @vbeln.
     COMMIT WORK.
 
-    CALL FUNCTION 'DEQUEUE_EVVBAK'
-      EXPORTING
-        mode_vbak = `E`
-        mandt     = sy-mandt
-        vbeln     = vbeln.
+    request_lock( EXPORTING process = 'D'
+                  IMPORTING success         = DATA(released_ok)
+                            msg_description = DATA(released_msg) ).
 
-    lock_release( ).
     client->message_toast_display( `Saved.` ).
     client->nav_app_leave( ).
 
@@ -219,7 +181,9 @@ CLASS z2ui5_test_lock_08 IMPLEMENTATION.
 
   METHOD on_event_release.
 
-    lock_release( ).
+    request_lock( EXPORTING process = 'D'
+                  IMPORTING success         = DATA(released_ok)
+                            msg_description = DATA(released_msg) ).
     client->nav_app_leave( ).
 
   ENDMETHOD.
