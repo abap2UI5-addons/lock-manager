@@ -211,11 +211,10 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
 
   METHOD auto_release_locks.
-    DATA lv_now TYPE timestampl.
-    GET TIME STAMP FIELD lv_now.
-    DATA(lv_threshold) = cl_abap_tstmp=>subtractsecs(
-      tstmp = lv_now
-      secs  = iv_minutes * 60
+    DATA(lv_now) = z2ui5_cl_util=>time_get_timestampl( ).
+    DATA(lv_threshold) = z2ui5_cl_util=>time_subtract_seconds(
+      time    = lv_now
+      seconds = iv_minutes * 60
     ).
     SELECT * FROM z2ui5_t_05
       INTO TABLE @DATA(lt_old)
@@ -307,7 +306,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       created_by = sy-uname
       status     = c_status_pending
     ).
-    GET TIME STAMP FIELD ls_req-created_at.
+    ls_req-created_at = z2ui5_cl_util=>time_get_timestampl( ).
 
     INSERT z2ui5_t_05 FROM ls_req.
 
