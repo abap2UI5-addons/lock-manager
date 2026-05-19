@@ -1,4 +1,4 @@
-# Platform Lock Manager
+# Lock Manager
 
 A reusable, event-driven lock manager for [abap2UI5](https://github.com/abap2UI5/abap2UI5) apps (and any stateless ABAP web app) that need to hold a lock across HTTP roundtrips.
 
