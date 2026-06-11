@@ -112,20 +112,7 @@ CLASS z2ui5_cl_lock_manager DEFINITION PUBLIC FINAL CREATE PUBLIC.
         IMPORTING
           iv_req_id        TYPE guid_32
         RETURNING
-          VALUE(rs_result) TYPE ty_result,
-
-      execute_lock_fm
-        IMPORTING
-          iv_function       TYPE clike
-          it_params         TYPE ty_params
-        RETURNING
-          VALUE(rv_success) TYPE abap_bool,
-
-      derive_dequeue_fm
-        IMPORTING
-          iv_enqueue_fm        TYPE clike
-        RETURNING
-          VALUE(rv_dequeue_fm) TYPE char61.
+          VALUE(rs_result) TYPE ty_result.
 
 ENDCLASS.
 
@@ -186,18 +173,23 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
         INTO TABLE @DATA(lt_params)
         WHERE req_id = @ls_req-req_id.
 
-      DATA(lt_typed_params) = VALUE ty_params(
+      DATA(lt_lock_params) = VALUE z2ui5_cl_util=>ty_t_lock_param(
         FOR ls_p IN lt_params (
           name  = ls_p-name
-          type  = ls_p-type
           value = ls_p-value
         )
       ).
 
-      IF execute_lock_fm(
-           iv_function = ls_req-function
-           it_params   = lt_typed_params
-         ) = abap_true.
+      DATA(lv_success) = COND abap_bool(
+        WHEN ls_req-process = c_process_dequeue
+        THEN z2ui5_cl_util=>lock_delete(
+               val     = ls_req-function
+               t_param = lt_lock_params )
+        ELSE z2ui5_cl_util=>lock_set(
+               val     = ls_req-function
+               t_param = lt_lock_params ) ).
+
+      IF lv_success = abap_true.
         ls_req-status = c_status_done.
       ELSE.
         ls_req-status = c_status_error.
@@ -224,11 +216,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
         AND created_at < @lv_threshold.
 
     LOOP AT lt_old INTO DATA(ls_old).
-      DATA(lv_deq_fm) = derive_dequeue_fm( ls_old-function ).
-      execute_lock_fm(
-        iv_function = lv_deq_fm
-        it_params   = VALUE #( )
-      ).
+      z2ui5_cl_util=>lock_delete( ls_old-function ).
       UPDATE z2ui5_t_05 SET status = @c_status_released
         WHERE req_id = @ls_old-req_id.
 
@@ -238,27 +226,24 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
   METHOD read_sm12_locks.
 
-    DATA lt_enqtab TYPE STANDARD TABLE OF seqg3.
-
-    CALL FUNCTION 'ENQUEUE_READ'
-      EXPORTING
-        gclient = sy-mandt
-        gname   = iv_lock_object
-        guname  = iv_user
-      TABLES
-        enqtab  = lt_enqtab
-      EXCEPTIONS
-        OTHERS  = 1.
+    TRY.
+        DATA(lt_locks) = z2ui5_cl_util=>lock_read(
+          lock_object = iv_lock_object
+          user        = iv_user
+        ).
+      CATCH cx_root.
+        RETURN.
+    ENDTRY.
 
     rt_locks = VALUE #(
-      FOR ls_enq IN lt_enqtab (
-        lock_object = ls_enq-gname
-        argument    = ls_enq-garg
-        user        = ls_enq-guname
-        mode        = ls_enq-gmode
-        client      = ls_enq-gclient
-        date        = ls_enq-gtdate
-        time        = ls_enq-gttime
+      FOR ls_lock IN lt_locks (
+        lock_object = ls_lock-lock_object
+        argument    = ls_lock-argument
+        user        = ls_lock-user
+        mode        = ls_lock-mode
+        client      = ls_lock-client
+        date        = ls_lock-date
+        time        = ls_lock-time
       )
     ).
 
@@ -374,42 +359,6 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
              msg_title = 'Timeout'
              msg_desc  = 'Background job did not respond in time'
            )
-    ).
-
-  ENDMETHOD.
-
-
-  METHOD execute_lock_fm.
-
-    DATA(lt_bindings) = VALUE abap_func_parmbind_tab(
-      FOR ls_p IN it_params (
-        name  = ls_p-name
-        kind  = abap_func_exporting
-        value = NEW string( ls_p-value )
-      )
-    ).
-
-    TRY.
-        data(lt_exc) =  value abap_func_excpbind_tab( ).
-        CALL FUNCTION iv_function
-          PARAMETER-TABLE lt_bindings
-          EXCEPTION-TABLE lt_exc.
-
-        rv_success = abap_true.
-
-      CATCH cx_root.
-        rv_success = abap_false.
-    ENDTRY.
-
-  ENDMETHOD.
-
-
-  METHOD derive_dequeue_fm.
-
-    rv_dequeue_fm = replace(
-      val  = iv_enqueue_fm
-      sub  = 'ENQUEUE_'
-      with = 'DEQUEUE_'
     ).
 
   ENDMETHOD.
