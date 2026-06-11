@@ -136,37 +136,30 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA lt_enqtab TYPE STANDARD TABLE OF seqg3.
-
-    CALL FUNCTION 'ENQUEUE_READ'
-      EXPORTING
-        gclient = mv_client
-        gname   = mv_lock_object
-        guname  = mv_user
-      TABLES
-        enq     = lt_enqtab
-      EXCEPTIONS
-        OTHERS  = 1.
-
-    IF sy-subrc <> 0.
-      mo_client->message_box_display(
-        text = `Could not read lock table (ENQUEUE_READ failed).`
-        type = `error` ).
-      CLEAR mt_locks.
-      RETURN.
-    ENDIF.
+    TRY.
+        DATA(lt_locks) = z2ui5_cl_util=>lock_read(
+          lock_object = mv_lock_object
+          user        = mv_user
+          client      = mv_client ).
+      CATCH cx_root.
+        mo_client->message_box_display(
+          text = `Could not read lock table (ENQUEUE_READ failed).`
+          type = `error` ).
+        CLEAR mt_locks.
+        RETURN.
+    ENDTRY.
 
     mt_locks = VALUE #(
-      FOR ls_enq IN lt_enqtab (
-        gname   = ls_enq-gname
-        garg    = ls_enq-garg
-        guname  = ls_enq-guname
-        gmode   = ls_enq-gmode
-        gclient = ls_enq-gclient
-        gtdate  = ls_enq-gtdate
-        gttime  = ls_enq-gttime
-        gusr    = ls_enq-gusr
-        gusrvb  = ls_enq-gusrvb
+      FOR ls_lock IN lt_locks (
+        gname   = ls_lock-lock_object
+        garg    = ls_lock-argument
+        guname  = ls_lock-user
+        gmode   = ls_lock-mode
+        gclient = ls_lock-client
+        gtdate  = ls_lock-date
+        gttime  = ls_lock-time
+        gusr    = ls_lock-owner
+        gusrvb  = ls_lock-owner_vb
       ) ).
 
     mo_client->message_toast_display( |Found { lines( mt_locks ) } lock(s).| ).
@@ -183,42 +176,33 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA lt_enq   TYPE STANDARD TABLE OF seqg3.
+    DATA lt_lock  TYPE z2ui5_cl_util=>ty_t_lock.
     DATA lv_count TYPE i.
-    DATA lv_subrc TYPE sy-subrc.
 
     LOOP AT mt_locks INTO DATA(ls_lock) WHERE selkz = abap_true.
-      APPEND VALUE seqg3(
-        gname   = ls_lock-gname
-        garg    = ls_lock-garg
-        gmode   = ls_lock-gmode
-        guname  = ls_lock-guname
-        gclient = ls_lock-gclient
-        gusr    = ls_lock-gusr
-        gusrvb  = ls_lock-gusrvb
-      ) TO lt_enq.
+      APPEND VALUE z2ui5_cl_util=>ty_s_lock(
+        lock_object = ls_lock-gname
+        argument    = ls_lock-garg
+        mode        = ls_lock-gmode
+        user        = ls_lock-guname
+        client      = ls_lock-gclient
+        owner       = ls_lock-gusr
+        owner_vb    = ls_lock-gusrvb
+      ) TO lt_lock.
       lv_count = lv_count + 1.
     ENDLOOP.
 
-    IF lt_enq IS INITIAL.
+    IF lt_lock IS INITIAL.
       mo_client->message_toast_display( `No locks selected.` ).
       RETURN.
     ENDIF.
 
-    CALL FUNCTION 'ENQUE_DELETE'
-      EXPORTING
-        check_upd_requests = 0
-      IMPORTING
-        subrc              = lv_subrc
-      TABLES
-        enq                = lt_enq.
-
-    IF lv_subrc = 0.
+    IF z2ui5_cl_util=>lock_delete_entries( lt_lock ) = abap_true.
       DELETE mt_locks WHERE selkz = abap_true.
       mo_client->message_toast_display( |{ lv_count } lock(s) deleted.| ).
     ELSE.
       mo_client->message_box_display(
-        text = |Lock deletion failed (subrc = { lv_subrc }).|
+        text = `Lock deletion failed.`
         type = `error` ).
     ENDIF.
 
