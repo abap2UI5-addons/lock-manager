@@ -3,6 +3,8 @@ CLASS z2ui5_cl_lock_sample DEFINITION PUBLIC CREATE PUBLIC.
   PUBLIC SECTION.
     INTERFACES z2ui5_if_app.
 
+  PROTECTED SECTION.
+
   PRIVATE SECTION.
 
     " Input
@@ -64,7 +66,7 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
     ENDIF.
 
     IF mv_lock = abap_false AND mv_unlock = abap_false
-   AND mv_read_sm12 = abap_false AND mv_read_ztab = abap_false.
+       AND mv_read_sm12 = abap_false AND mv_read_ztab = abap_false.
       mv_msg_type    = 'Warning'.
       mv_msg_text    = 'Please select at least one action'.
       mv_msg_visible = abap_true.
@@ -150,9 +152,9 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
     DATA(lo_view) = z2ui5_cl_xml_view=>factory( ).
 
     DATA(lo_page) = lo_view->page(
-      title         = 'Lock Handler Demo'
-      navbuttonpress = io_client->_event( 'BACK' )
-      shownavbutton  = abap_true
+      title          = 'Lock Handler Demo'
+      navbuttonpress = io_client->_event_nav_app_leave( )
+      shownavbutton  = io_client->check_app_prev_stack( )
     ).
 
     " ── Toolbar ───────────────────────────────────────────────
@@ -186,7 +188,7 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
     lo_content->label( 'Sales Order (VBELN)' ).
     lo_content->input(
-      value       = io_client->_bind( mv_vbeln )
+      value       = io_client->_bind_edit( mv_vbeln )
       placeholder = 'e.g. 0050000005'
       maxlength   = '10'
     ).
@@ -195,19 +197,19 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
     DATA(lo_hbox) = lo_content->hbox( alignitems = 'Center' ).
     lo_hbox->checkbox(
       text     = 'Lock'
-      selected = io_client->_bind( mv_lock )
+      selected = io_client->_bind_edit( mv_lock )
     ).
     lo_hbox->checkbox(
       text     = 'Unlock'
-      selected = io_client->_bind( mv_unlock )
+      selected = io_client->_bind_edit( mv_unlock )
     ).
     lo_hbox->checkbox(
       text     = 'Read SM12 Locks'
-      selected = io_client->_bind( mv_read_sm12 )
+      selected = io_client->_bind_edit( mv_read_sm12 )
     ).
     lo_hbox->checkbox(
       text     = 'Read Z-Table'
-      selected = io_client->_bind( mv_read_ztab )
+      selected = io_client->_bind_edit( mv_read_ztab )
     ).
 
     " ── Message Strip ─────────────────────────────────────────
