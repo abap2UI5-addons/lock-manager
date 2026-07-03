@@ -13,6 +13,7 @@ The kernel `ENQUEUE_*` is bound to the calling session and dies with the HTTP ro
 - A **background report** that owns the kernel enqueue so the lock survives session end
 - **Auto-release** based on a configurable TTL
 - A ready-to-run **sample app** (`z2ui5_cl_lock_sample`) showing the full flow against `VBAK / ENQUEUE_EVVBAKE`
+- An **SM12-style admin app** (`z2ui5_cl_app_sm12`) to browse and delete kernel lock entries
 
 ## Architecture
 
@@ -41,6 +42,7 @@ Because the kernel enqueue is held by the background user, the lock survives the
 | `z2ui5_t_06` | Lock request parameters (req_id, name, type, value) |
 | `z2ui5_re_lock_background` | Background report — processes pending rows and auto-releases expired ones |
 | `z2ui5_cl_lock_sample` | abap2UI5 sample app — lock / unlock / list SM12 / list registry |
+| `z2ui5_cl_app_sm12` | abap2UI5 admin app — browse and delete kernel lock entries (SM12-style, with authorization checks) |
 
 ## Setup
 
