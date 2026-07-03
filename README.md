@@ -13,6 +13,7 @@ The kernel `ENQUEUE_*` is bound to the calling session and dies with the HTTP ro
 - A **background report** that owns the kernel enqueue so the lock survives session end
 - **Auto-release** based on a configurable TTL
 - A ready-to-run **sample app** (`z2ui5_cl_lock_sample`) showing the full flow against `VBAK / ENQUEUE_EVVBAKE`
+- An **SM12-style admin app** (`z2ui5_cl_app_sm12`) to browse and delete kernel lock entries
 
 ## Architecture
 
@@ -28,7 +29,7 @@ The kernel `ENQUEUE_*` is bound to the calling session and dies with the HTTP ro
 
 1. The web request writes a `PENDING` row into `z2ui5_t_05` (parameters into `z2ui5_t_06`) and raises the SM64 event `LOCK_HANDLER` (or `LOCK_HANDLER_<mandt>` for client-dependent jobs).
 2. SAP starts the background report, which loops over all pending rows and calls the requested `ENQUEUE_*` / `DEQUEUE_*` function module under its own user — so the kernel lock lives in the background work process, not in the web session.
-3. The web request polls the row for up to 10 seconds and returns `Success` / `Error` / `Timeout`.
+3. The web request polls the row for up to 10 seconds and returns `Success` / `Error` (with `msg_title = 'Timeout'` if the background job did not respond in time).
 
 Because the kernel enqueue is held by the background user, the lock survives the HTTP roundtrip. The registry row in `z2ui5_t_05` is what makes the lock visible to other web sessions, even after the original work process has been recycled.
 
@@ -41,6 +42,7 @@ Because the kernel enqueue is held by the background user, the lock survives the
 | `z2ui5_t_06` | Lock request parameters (req_id, name, type, value) |
 | `z2ui5_re_lock_background` | Background report — processes pending rows and auto-releases expired ones |
 | `z2ui5_cl_lock_sample` | abap2UI5 sample app — lock / unlock / list SM12 / list registry |
+| `z2ui5_cl_app_sm12` | abap2UI5 admin app — browse and delete kernel lock entries (SM12-style, with authorization checks) |
 
 ## Setup
 
@@ -106,7 +108,7 @@ DATA(lt_reg)  = z2ui5_cl_lock_manager=>read_lock_requests(
 
 ## Notes & limits
 
-- `request` polls the registry row for up to **10 seconds**. If the background job is delayed beyond that you get `msg_type = 'Error'` / `msg_desc = 'Timeout'`. The row is still picked up later — call `read_lock_requests` to see the final status.
+- `request` polls the registry row for up to **10 seconds**. If the background job is delayed beyond that you get `msg_type = 'Error'` / `msg_title = 'Timeout'`. The row is still picked up later — call `read_lock_requests` to see the final status.
 - The check for an existing lock looks at `status = DONE AND process = ENQUEUE` in `z2ui5_t_05`. Make sure your release path actually flips the row (or rely on `auto_release_locks`), otherwise stale entries will keep blocking new requests.
 - `auto_release_locks` is invoked from the background report whenever `p_time` is set, so the cleanup cadence equals the event cadence. Schedule a periodic kick if you need a hard upper bound independent of incoming requests.
 - The manager is advisory at the UX layer. Keep your save-time optimistic check (timestamp / ETag) in place — the database-level guard at save remains your responsibility.

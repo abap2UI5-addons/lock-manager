@@ -9,9 +9,9 @@ REPORT z2ui5_re_lock_background.
 * Selection Screen
 *----------------------------------------------------------------------*
 PARAMETERS:
-  p_wait TYPE i       DEFAULT 2  OBLIGATORY, " Seconds between checks
-  p_user TYPE sy-uname            OBLIGATORY, " Background user
-  p_time TYPE i                   .   " Auto-release in minutes
+  p_wait TYPE i        DEFAULT 2 OBLIGATORY, " Seconds between checks
+  p_user TYPE sy-uname OBLIGATORY,           " Background user
+  p_time TYPE i.                             " Auto-release in minutes
 
 *----------------------------------------------------------------------*
 * Selection Screen Texts

@@ -83,6 +83,8 @@ CLASS z2ui5_cl_lock_manager DEFINITION PUBLIC FINAL CREATE PUBLIC.
         RETURNING
           VALUE(rt_entries) TYPE ty_lock_entries.
 
+  PROTECTED SECTION.
+
   PRIVATE SECTION.
 
     CLASS-METHODS:
@@ -203,12 +205,14 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
 
   METHOD auto_release_locks.
+
     DATA lv_now TYPE timestampl.
     GET TIME STAMP FIELD lv_now.
     DATA(lv_threshold) = cl_abap_tstmp=>subtractsecs(
       tstmp = lv_now
       secs  = iv_minutes * 60
     ).
+
     SELECT * FROM z2ui5_t_05
       INTO TABLE @DATA(lt_old)
       WHERE status     = @c_status_done
@@ -219,8 +223,8 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       z2ui5_cl_util=>lock_delete( ls_old-function ).
       UPDATE z2ui5_t_05 SET status = @c_status_released
         WHERE req_id = @ls_old-req_id.
-
     ENDLOOP.
+
   ENDMETHOD.
 
 
@@ -297,11 +301,11 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     INSERT z2ui5_t_05 FROM ls_req.
 
     LOOP AT it_params INTO DATA(ls_p).
-      INSERT z2ui5_t_06 FROM @( value #(
+      INSERT z2ui5_t_06 FROM @( VALUE #(
         req_id = rv_req_id
         name   = ls_p-name
         type   = ls_p-type
-        VALUE  = ls_p-value
+        value  = ls_p-value
       ) ).
     ENDLOOP.
 

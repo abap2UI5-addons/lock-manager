@@ -210,22 +210,27 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
 
 
   METHOD check_auth_display.
+
     AUTHORITY-CHECK OBJECT 'S_ADMI_FCD'
       ID 'S_ADMI_FCD' FIELD 'ENQ'.
     rv_ok = xsdbool( sy-subrc = 0 ).
+
     " ENQA implicitly grants display rights too.
     IF rv_ok = abap_false.
       AUTHORITY-CHECK OBJECT 'S_ADMI_FCD'
         ID 'S_ADMI_FCD' FIELD 'ENQA'.
       rv_ok = xsdbool( sy-subrc = 0 ).
     ENDIF.
+
   ENDMETHOD.
 
 
   METHOD check_auth_admin.
+
     AUTHORITY-CHECK OBJECT 'S_ADMI_FCD'
       ID 'S_ADMI_FCD' FIELD 'ENQA'.
     rv_ok = xsdbool( sy-subrc = 0 ).
+
   ENDMETHOD.
 
 
