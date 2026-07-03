@@ -28,7 +28,7 @@ The kernel `ENQUEUE_*` is bound to the calling session and dies with the HTTP ro
 
 1. The web request writes a `PENDING` row into `z2ui5_t_05` (parameters into `z2ui5_t_06`) and raises the SM64 event `LOCK_HANDLER` (or `LOCK_HANDLER_<mandt>` for client-dependent jobs).
 2. SAP starts the background report, which loops over all pending rows and calls the requested `ENQUEUE_*` / `DEQUEUE_*` function module under its own user — so the kernel lock lives in the background work process, not in the web session.
-3. The web request polls the row for up to 10 seconds and returns `Success` / `Error` / `Timeout`.
+3. The web request polls the row for up to 10 seconds and returns `Success` / `Error` (with `msg_title = 'Timeout'` if the background job did not respond in time).
 
 Because the kernel enqueue is held by the background user, the lock survives the HTTP roundtrip. The registry row in `z2ui5_t_05` is what makes the lock visible to other web sessions, even after the original work process has been recycled.
 
@@ -106,7 +106,7 @@ DATA(lt_reg)  = z2ui5_cl_lock_manager=>read_lock_requests(
 
 ## Notes & limits
 
-- `request` polls the registry row for up to **10 seconds**. If the background job is delayed beyond that you get `msg_type = 'Error'` / `msg_desc = 'Timeout'`. The row is still picked up later — call `read_lock_requests` to see the final status.
+- `request` polls the registry row for up to **10 seconds**. If the background job is delayed beyond that you get `msg_type = 'Error'` / `msg_title = 'Timeout'`. The row is still picked up later — call `read_lock_requests` to see the final status.
 - The check for an existing lock looks at `status = DONE AND process = ENQUEUE` in `z2ui5_t_05`. Make sure your release path actually flips the row (or rely on `auto_release_locks`), otherwise stale entries will keep blocking new requests.
 - `auto_release_locks` is invoked from the background report whenever `p_time` is set, so the cleanup cadence equals the event cadence. Schedule a periodic kick if you need a hard upper bound independent of incoming requests.
 - The manager is advisory at the UX layer. Keep your save-time optimistic check (timestamp / ETag) in place — the database-level guard at save remains your responsibility.
