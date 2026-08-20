@@ -3,7 +3,7 @@
   "findings": {
     "src/z2ui5_cl_app_sm12.clas.abap|aggregation-too-new|sap.m.Dialog|footer|": 1,
     "src/z2ui5_cl_app_sm12.clas.abap|missing-on-navigated-branch|||": 1,
-    "src/z2ui5_cl_app_sm12.clas.abap|non-released-api||src/99/01|z2ui5_cl_util": 1,
+    "src/z2ui5_cl_app_sm12.clas.abap|non-released-api||src/99/01|z2ui5_cl_util_ext": 1,
     "src/z2ui5_cl_app_sm12.clas.abap|obsolete-binder||_bind_edit|": 1,
     "src/z2ui5_cl_app_sm12.clas.abap|obsolete-frontend-event||_event_client|": 1,
     "src/z2ui5_cl_app_sm12.clas.abap|obsolete-model-update||view_model_update|": 1,

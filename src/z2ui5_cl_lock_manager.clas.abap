@@ -175,7 +175,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
         INTO TABLE @DATA(lt_params)
         WHERE req_id = @ls_req-req_id.
 
-      DATA(lt_lock_params) = VALUE z2ui5_cl_util=>ty_t_lock_param(
+      DATA(lt_lock_params) = VALUE z2ui5_cl_util_ext=>ty_t_lock_param(
         FOR ls_p IN lt_params (
           name  = ls_p-name
           value = ls_p-value
@@ -184,10 +184,10 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
       DATA(lv_success) = COND abap_bool(
         WHEN ls_req-process = c_process_dequeue
-        THEN z2ui5_cl_util=>lock_delete(
+        THEN z2ui5_cl_util_ext=>lock_delete(
                val     = ls_req-function
                t_param = lt_lock_params )
-        ELSE z2ui5_cl_util=>lock_set(
+        ELSE z2ui5_cl_util_ext=>lock_set(
                val     = ls_req-function
                t_param = lt_lock_params ) ).
 
@@ -220,7 +220,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
         AND created_at < @lv_threshold.
 
     LOOP AT lt_old INTO DATA(ls_old).
-      z2ui5_cl_util=>lock_delete( ls_old-function ).
+      z2ui5_cl_util_ext=>lock_delete( ls_old-function ).
       UPDATE z2ui5_t_05 SET status = @c_status_released
         WHERE req_id = @ls_old-req_id.
     ENDLOOP.
@@ -231,7 +231,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   METHOD read_sm12_locks.
 
     TRY.
-        DATA(lt_locks) = z2ui5_cl_util=>lock_read(
+        DATA(lt_locks) = z2ui5_cl_util_ext=>lock_read(
           lock_object = iv_lock_object
           user        = iv_user
         ).
