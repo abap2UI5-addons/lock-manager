@@ -149,135 +149,193 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
   METHOD build_view.
 
-    DATA(lo_view) = z2ui5_cl_xml_view=>factory( ).
+    DATA(lo_view) = z2ui5_cl_ui5_view_builder=>factory( 
+                        )->ele( n = `View` ns = `mvc` 
+                        )->a( n = `xmlns` v = `sap.m` 
+                        )->a( n = `xmlns:mvc` v = `sap.ui.core.mvc` 
+                        )->a( n = `xmlns:core` v = `sap.ui.core` 
+                        )->a( n = `xmlns:form` v = `sap.ui.layout.form` 
+                        )->a( n = `displayBlock` v = `true` 
+                        )->a( n = `height` v = `100%` ).
 
-    DATA(lo_page) = lo_view->page(
-      title          = 'Lock Handler Demo'
-      navbuttonpress = io_client->_event_nav_app_leave( )
-      shownavbutton  = io_client->check_app_prev_stack( )
-    ).
+    DATA(lo_page) = lo_view->ele( `Page` 
+                        )->a( n = `title` v = 'Lock Handler Demo' 
+                        )->a( n = `navButtonPress` v = io_client->_event_nav_app_leave( ) 
+                        )->a( n = `showNavButton` b = io_client->check_app_prev_stack( ) ).
 
     " ── Toolbar ───────────────────────────────────────────────
-    DATA(lo_toolbar) = lo_page->toolbar( ).
-    lo_toolbar->button(
-      text  = 'Execute'
-      press = io_client->_event( 'EXECUTE' )
-      type  = 'Emphasized'
-      icon  = 'sap-icon://play'
-    ).
-    lo_toolbar->button(
-      text  = 'Refresh'
-      press = io_client->_event( 'REFRESH' )
-      type  = 'Default'
-      icon  = 'sap-icon://refresh'
-    ).
-    lo_toolbar->button(
-      text  = 'Clear'
-      press = io_client->_event( 'CLEAR' )
-      type  = 'Default'
-      icon  = 'sap-icon://clear-all'
-    ).
+    DATA(lo_toolbar) = lo_page->ele( `Toolbar` ).
+    lo_toolbar->tag( `Button` 
+        )->a( n = `text` v = 'Execute' 
+        )->a( n = `press` v = io_client->_event( 'EXECUTE' ) 
+        )->a( n = `type` v = 'Emphasized' 
+        )->a( n = `icon` v = 'sap-icon://play' ).
+    lo_toolbar->tag( `Button` 
+        )->a( n = `text` v = 'Refresh' 
+        )->a( n = `press` v = io_client->_event( 'REFRESH' ) 
+        )->a( n = `type` v = 'Default' 
+        )->a( n = `icon` v = 'sap-icon://refresh' ).
+    lo_toolbar->tag( `Button` 
+        )->a( n = `text` v = 'Clear' 
+        )->a( n = `press` v = io_client->_event( 'CLEAR' ) 
+        )->a( n = `type` v = 'Default' 
+        )->a( n = `icon` v = 'sap-icon://clear-all' ).
 
     " ── Input Panel ───────────────────────────────────────────
-    DATA(lo_panel_in) = lo_page->panel( headertext = 'Input' expanded = 'true' ).
-    DATA(lo_form)     = lo_panel_in->simple_form(
-      layout   = 'ResponsiveGridLayout'
-      editable = 'true'
-    ).
-    DATA(lo_content) = lo_form->content( ).
+    DATA(lo_panel_in) = lo_page->ele( `Panel` 
+                            )->a( n = `headerText` v = 'Input' 
+                            )->a( n = `expanded` v = 'true' ).
+    DATA(lo_form)     = lo_panel_in->ele( n = `SimpleForm` ns = `form` 
+                            )->a( n = `layout` v = 'ResponsiveGridLayout' 
+                            )->a( n = `editable` v = 'true' ).
+    " an aggregation tag takes the namespace of its own control, so a
+    " SimpleForm's content is form:content - unprefixed it resolves against
+    " the default xmlns and UI5 goes looking for a sap.m.content control
+    DATA(lo_content) = lo_form->ele( n = `content` ns = `form` ).
 
-    lo_content->label( 'Sales Order (VBELN)' ).
-    lo_content->input(
-      value       = io_client->_bind_edit( mv_vbeln )
-      placeholder = 'e.g. 0050000005'
-      maxlength   = '10'
-    ).
+    lo_content->tag( `Label` 
+        )->a( n = `text` v = 'Sales Order (VBELN)' ).
+    lo_content->tag( `Input` 
+        )->a( n = `value` v = io_client->_bind_edit( mv_vbeln ) 
+        )->a( n = `placeholder` v = 'e.g. 0050000005' 
+        )->a( n = `maxLength` v = '10' ).
 
-    lo_content->label( 'Actions' ).
-    DATA(lo_hbox) = lo_content->hbox( alignitems = 'Center' ).
-    lo_hbox->checkbox(
-      text     = 'Lock'
-      selected = io_client->_bind_edit( mv_lock )
-    ).
-    lo_hbox->checkbox(
-      text     = 'Unlock'
-      selected = io_client->_bind_edit( mv_unlock )
-    ).
-    lo_hbox->checkbox(
-      text     = 'Read SM12 Locks'
-      selected = io_client->_bind_edit( mv_read_sm12 )
-    ).
-    lo_hbox->checkbox(
-      text     = 'Read Z-Table'
-      selected = io_client->_bind_edit( mv_read_ztab )
-    ).
+    lo_content->tag( `Label` 
+        )->a( n = `text` v = 'Actions' ).
+    DATA(lo_hbox) = lo_content->ele( `HBox` 
+                        )->a( n = `alignItems` v = 'Center' ).
+    lo_hbox->tag( `CheckBox` 
+        )->a( n = `text` v = 'Lock' 
+        )->a( n = `selected` v = io_client->_bind_edit( mv_lock ) ).
+    lo_hbox->tag( `CheckBox` 
+        )->a( n = `text` v = 'Unlock' 
+        )->a( n = `selected` v = io_client->_bind_edit( mv_unlock ) ).
+    lo_hbox->tag( `CheckBox` 
+        )->a( n = `text` v = 'Read SM12 Locks' 
+        )->a( n = `selected` v = io_client->_bind_edit( mv_read_sm12 ) ).
+    lo_hbox->tag( `CheckBox` 
+        )->a( n = `text` v = 'Read Z-Table' 
+        )->a( n = `selected` v = io_client->_bind_edit( mv_read_ztab ) ).
 
     " ── Message Strip ─────────────────────────────────────────
-    lo_page->message_strip(
-      text    = io_client->_bind( mv_msg_text )
-      type    = io_client->_bind( mv_msg_type )
-      visible = io_client->_bind( mv_msg_visible )
-    ).
+    lo_page->tag( `MessageStrip` 
+        )->a( n = `text` v = io_client->_bind( mv_msg_text ) 
+        )->a( n = `type` v = io_client->_bind( mv_msg_type ) 
+        )->a( n = `visible` v = io_client->_bind( mv_msg_visible ) ).
 
     " ── SM12 Locks Panel ──────────────────────────────────────
-    DATA(lo_panel_sm12) = lo_page->panel(
-      headertext = 'SM12 Active Locks'
-      expanded   = 'true'
-    ).
+    DATA(lo_panel_sm12) = lo_page->ele( `Panel` 
+                              )->a( n = `headerText` v = 'SM12 Active Locks' 
+                              )->a( n = `expanded` v = 'true' ).
 
-    DATA(lo_tab_sm12) = lo_panel_sm12->table(
-      items      = io_client->_bind( mt_sm12 )
-      mode       = 'None'
-    ).
+    DATA(lo_tab_sm12) = lo_panel_sm12->ele( `Table` 
+                            )->a( n = `items` v = io_client->_bind( mt_sm12 ) 
+                            )->a( n = `mode` v = 'None' ).
 
-    DATA(lo_cols_sm12) = lo_tab_sm12->columns( ).
-    lo_cols_sm12->column( width = '15rem' )->text( 'Lock Object' ).
-    lo_cols_sm12->column( width = '10rem' )->text( 'User'        ).
-    lo_cols_sm12->column( width = '5rem'  )->text( 'Mode'        ).
-    lo_cols_sm12->column( width = '6rem'  )->text( 'Client'      ).
-    lo_cols_sm12->column( width = '9rem'  )->text( 'Date'        ).
-    lo_cols_sm12->column( width = '8rem'  )->text( 'Time'        ).
-    lo_cols_sm12->column(                  )->text( 'Argument'    ).
+    DATA(lo_cols_sm12) = lo_tab_sm12->ele( `columns` ).
+    lo_cols_sm12->ele( `Column` 
+        )->a( n = `width` v = '15rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Lock Object' ).
+    lo_cols_sm12->ele( `Column` 
+        )->a( n = `width` v = '10rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'User' ).
+    lo_cols_sm12->ele( `Column` 
+        )->a( n = `width` v = '5rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Mode' ).
+    lo_cols_sm12->ele( `Column` 
+        )->a( n = `width` v = '6rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Client' ).
+    lo_cols_sm12->ele( `Column` 
+        )->a( n = `width` v = '9rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Date' ).
+    lo_cols_sm12->ele( `Column` 
+        )->a( n = `width` v = '8rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Time' ).
+    lo_cols_sm12->ele( `Column` 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Argument' ).
 
-    DATA(lo_row_sm12) = lo_tab_sm12->column_list_item( ).
-    lo_row_sm12->text( '{lock_object}' ).
-    lo_row_sm12->text( '{user}'        ).
-    lo_row_sm12->text( '{mode}'        ).
-    lo_row_sm12->text( '{client}'      ).
-    lo_row_sm12->text( '{date}'        ).
-    lo_row_sm12->text( '{time}'        ).
-    lo_row_sm12->text( '{argument}'    ).
+    DATA(lo_row_sm12) = lo_tab_sm12->ele( `ColumnListItem` ).
+    lo_row_sm12->tag( `Text` 
+        )->a( n = `text` v = '{lock_object}' ).
+    lo_row_sm12->tag( `Text` 
+        )->a( n = `text` v = '{user}' ).
+    lo_row_sm12->tag( `Text` 
+        )->a( n = `text` v = '{mode}' ).
+    lo_row_sm12->tag( `Text` 
+        )->a( n = `text` v = '{client}' ).
+    lo_row_sm12->tag( `Text` 
+        )->a( n = `text` v = '{date}' ).
+    lo_row_sm12->tag( `Text` 
+        )->a( n = `text` v = '{time}' ).
+    lo_row_sm12->tag( `Text` 
+        )->a( n = `text` v = '{argument}' ).
 
     " ── Z-Table Panel ─────────────────────────────────────────
-    DATA(lo_panel_ztab) = lo_page->panel(
-      headertext = 'Z-Table Lock Requests'
-      expanded   = 'true'
-    ).
+    DATA(lo_panel_ztab) = lo_page->ele( `Panel` 
+                              )->a( n = `headerText` v = 'Z-Table Lock Requests' 
+                              )->a( n = `expanded` v = 'true' ).
 
-    DATA(lo_tab_ztab) = lo_panel_ztab->table(
-      items      = io_client->_bind( mt_entries )
-      mode       = 'None'
-    ).
+    DATA(lo_tab_ztab) = lo_panel_ztab->ele( `Table` 
+                            )->a( n = `items` v = io_client->_bind( mt_entries ) 
+                            )->a( n = `mode` v = 'None' ).
 
-    DATA(lo_cols_ztab) = lo_tab_ztab->columns( ).
-    lo_cols_ztab->column( width = '8rem'  )->text( 'Status'     ).
-    lo_cols_ztab->column( width = '6rem'  )->text( 'Process'    ).
-    lo_cols_ztab->column( width = '10rem' )->text( 'Obj Type'   ).
-    lo_cols_ztab->column( width = '12rem' )->text( 'Obj Key'    ).
-    lo_cols_ztab->column( width = '18rem' )->text( 'Function'   ).
-    lo_cols_ztab->column( width = '10rem' )->text( 'User'       ).
-    lo_cols_ztab->column( width = '14rem' )->text( 'Timestamp'  ).
-    lo_cols_ztab->column(                  )->text( 'Message'    ).
+    DATA(lo_cols_ztab) = lo_tab_ztab->ele( `columns` ).
+    lo_cols_ztab->ele( `Column` 
+        )->a( n = `width` v = '8rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Status' ).
+    lo_cols_ztab->ele( `Column` 
+        )->a( n = `width` v = '6rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Process' ).
+    lo_cols_ztab->ele( `Column` 
+        )->a( n = `width` v = '10rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Obj Type' ).
+    lo_cols_ztab->ele( `Column` 
+        )->a( n = `width` v = '12rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Obj Key' ).
+    lo_cols_ztab->ele( `Column` 
+        )->a( n = `width` v = '18rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Function' ).
+    lo_cols_ztab->ele( `Column` 
+        )->a( n = `width` v = '10rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'User' ).
+    lo_cols_ztab->ele( `Column` 
+        )->a( n = `width` v = '14rem' 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Timestamp' ).
+    lo_cols_ztab->ele( `Column` 
+        )->tag( `Text` 
+        )->a( n = `text` v = 'Message' ).
 
-    DATA(lo_row_ztab) = lo_tab_ztab->column_list_item( ).
-    lo_row_ztab->text( '{status}'     ).
-    lo_row_ztab->text( '{process}'    ).
-    lo_row_ztab->text( '{obj_type}'   ).
-    lo_row_ztab->text( '{obj_key}'    ).
-    lo_row_ztab->text( '{function}'   ).
-    lo_row_ztab->text( '{created_by}' ).
-    lo_row_ztab->text( '{created_at}' ).
-    lo_row_ztab->text( '{msg_text}'   ).
+    DATA(lo_row_ztab) = lo_tab_ztab->ele( `ColumnListItem` ).
+    lo_row_ztab->tag( `Text` 
+        )->a( n = `text` v = '{status}' ).
+    lo_row_ztab->tag( `Text` 
+        )->a( n = `text` v = '{process}' ).
+    lo_row_ztab->tag( `Text` 
+        )->a( n = `text` v = '{obj_type}' ).
+    lo_row_ztab->tag( `Text` 
+        )->a( n = `text` v = '{obj_key}' ).
+    lo_row_ztab->tag( `Text` 
+        )->a( n = `text` v = '{function}' ).
+    lo_row_ztab->tag( `Text` 
+        )->a( n = `text` v = '{created_by}' ).
+    lo_row_ztab->tag( `Text` 
+        )->a( n = `text` v = '{created_at}' ).
+    lo_row_ztab->tag( `Text` 
+        )->a( n = `text` v = '{msg_text}' ).
 
     io_client->view_display( lo_view->stringify( ) ).
 

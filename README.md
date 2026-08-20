@@ -1,3 +1,12 @@
+[![ABAP](https://img.shields.io/badge/ABAP-Standard%20%E2%86%92%20Cloud-blue)](#setup)
+[![namespace](https://img.shields.io/badge/namespace-z2ui5__cl__lock-blue)](abaplint.jsonc)
+[![dependency](https://img.shields.io/badge/dependency-abap2UI5-blue)](https://github.com/abap2UI5/abap2UI5)
+[![abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fmain%2F.github%2Fbadges%2Fabap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/check-abap2ui5.yaml)
+<br><br>
+[![abap-standard](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/abap-standard.yaml/badge.svg)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/abap-standard.yaml)
+<br>
+[![check-abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fmain%2F.github%2Fbadges%2Fcheck-abap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/check-abap2ui5.yaml)
+
 # Lock Manager
 
 A reusable, event-driven lock manager for [abap2UI5](https://github.com/abap2UI5/abap2UI5) apps (and any stateless ABAP web app) that need to hold a lock across HTTP roundtrips.

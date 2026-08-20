@@ -1,0 +1,48 @@
+{
+  // Syntax and style, resolved against the abap2UI5 core. There is no version
+  // pin on that dependency - abaplint clones its main branch - which is why
+  // the check workflow also runs weekly: a rename upstream breaks this
+  // repository silently otherwise.
+  "global": {
+    "files": "/src/**/*.*"
+  },
+  "dependencies": [
+    {
+      "url": "https://github.com/abapedia/steampunk-2305-api",
+      "folder": "/deps",
+      "files": "/src/**/*.*"
+    },
+    {
+      "url": "https://github.com/abap2UI5/abap2UI5",
+      "folder": "/abap2UI5",
+      "files": "/src/**/*.*"
+    }
+  ],
+  "syntax": {
+    // v754 is the floor this code actually needs, not a round number:
+    // read_lock_requests( ) writes its WHERE clause as
+    // ( @iv_status IS INITIAL OR status = @iv_status ), which does not parse
+    // below it. Claiming more would exclude systems that can run this.
+    "version": "v754",
+    // ^Z (not "."): this addon reads on-prem DDIC types and calls the kernel
+    // ENQUEUE function modules, which the API set does not ship - with "."
+    // every one of them is a false "not found". ^Z keeps the own namespace
+    // fully checked and treats unknown SAP-standard objects as void, which
+    // matches the on-prem target. Same reasoning as rap-ext.
+    "errorNamespace": "^Z"
+  },
+  "rules": {
+    "begin_end_names": true,
+    "check_ddic": true,
+    "check_include": true,
+    "check_syntax": true,
+    "global_class": true,
+    "definitions_top": false,
+    "implement_methods": true,
+    "method_implemented_twice": true,
+    "parser_error": true,
+    "superclass_final": true,
+    "unknown_types": true,
+    "xml_consistency": true
+  }
+}

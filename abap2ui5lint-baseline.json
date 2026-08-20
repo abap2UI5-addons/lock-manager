@@ -1,0 +1,23 @@
+{
+  "note": "abap2ui5-linter baseline: findings that existed when the linter was adopted. Suppressed on every run; NEW findings still fail, a STALE entry fails too. Regenerate with --update-baseline.",
+  "findings": {
+    "src/z2ui5_cl_app_sm12.clas.abap|aggregation-too-new|sap.m.Dialog|footer|": 1,
+    "src/z2ui5_cl_app_sm12.clas.abap|missing-on-navigated-branch|||": 1,
+    "src/z2ui5_cl_app_sm12.clas.abap|non-released-api||src/99/01|z2ui5_cl_util_ext": 1,
+    "src/z2ui5_cl_app_sm12.clas.abap|obsolete-binder||_bind_edit|": 1,
+    "src/z2ui5_cl_app_sm12.clas.abap|obsolete-frontend-event||_event_client|": 1,
+    "src/z2ui5_cl_app_sm12.clas.abap|obsolete-model-update||view_model_update|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mt_entries|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mt_sm12|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mv_lock|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mv_msg_text|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mv_msg_type|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mv_msg_visible|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mv_read_sm12|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mv_read_ztab|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mv_unlock|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|binding-to-nonpublic||mv_vbeln|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|icon-too-new|||clear-all": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|obsolete-binder||_bind_edit|": 1
+  }
+}
