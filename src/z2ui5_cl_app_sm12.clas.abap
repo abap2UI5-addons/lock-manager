@@ -103,24 +103,31 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA(popup) = z2ui5_cl_xml_view=>factory_popup( ).
-    popup = popup->dialog(
-        title        = `Confirm Delete`
-        type         = `Message`
-        contentwidth = `25rem` ).
+    DATA(popup) = z2ui5_cl_ui5_view_builder=>factory( 
+                      )->ele( n = `FragmentDefinition` ns = `core` 
+                      )->a( n = `xmlns` v = `sap.m` 
+                      )->a( n = `xmlns:core` v = `sap.ui.core` 
+                      )->a( n = `xmlns:form` v = `sap.ui.layout.form` ).
+    popup = popup->ele( `Dialog` 
+                )->a( n = `title` v = `Confirm Delete` 
+                )->a( n = `type` v = `Message` 
+                )->a( n = `contentWidth` v = `25rem` ).
 
-    popup->vbox( class = `sapUiSmallMargin`
-        )->text( |Are you sure you want to delete { lv_count } selected lock(s)? This action cannot be undone.| ).
+    popup->ele( `VBox` 
+        )->a( n = `class` v = `sapUiSmallMargin` 
+        )->tag( `Text` 
+        )->a( n = `text` v = |Are you sure you want to delete { lv_count } selected lock(s)? This action cannot be undone.| ).
 
-    popup->footer( )->overflow_toolbar(
-        )->toolbar_spacer(
-        )->button(
-            text  = `Cancel`
-            press = mo_client->_event_client( mo_client->cs_event-popup_close )
-        )->button(
-            text  = `Delete`
-            press = mo_client->_event( `CONFIRM_DELETE` )
-            type  = `Reject` ).
+    popup->ele( `footer` 
+        )->ele( `OverflowToolbar` 
+        )->tag( `ToolbarSpacer` 
+        )->tag( `Button` 
+        )->a( n = `text` v = `Cancel` 
+        )->a( n = `press` v = mo_client->_event_client( mo_client->cs_event-popup_close ) 
+        )->tag( `Button` 
+        )->a( n = `text` v = `Delete` 
+        )->a( n = `press` v = mo_client->_event( `CONFIRM_DELETE` ) 
+        )->a( n = `type` v = `Reject` ).
 
     mo_client->popup_display( popup->stringify( ) ).
 
@@ -272,88 +279,135 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
 
   METHOD view_display.
 
-    DATA(view) = z2ui5_cl_xml_view=>factory( ).
+    DATA(view) = z2ui5_cl_ui5_view_builder=>factory( 
+                     )->ele( n = `View` ns = `mvc` 
+                     )->a( n = `xmlns` v = `sap.m` 
+                     )->a( n = `xmlns:mvc` v = `sap.ui.core.mvc` 
+                     )->a( n = `xmlns:core` v = `sap.ui.core` 
+                     )->a( n = `xmlns:form` v = `sap.ui.layout.form` 
+                     )->a( n = `displayBlock` v = `true` 
+                     )->a( n = `height` v = `100%` ).
 
-    DATA(page) = view->shell(
-        )->page(
-            title          = `Lock Manager (SM12)`
-            navbuttonpress = mo_client->_event_nav_app_leave( )
-            shownavbutton  = mo_client->check_app_prev_stack( ) ).
+    DATA(page) = view->ele( `Shell` 
+                     )->ele( `Page` 
+                     )->a( n = `title` v = `Lock Manager (SM12)` 
+                     )->a( n = `navButtonPress` v = mo_client->_event_nav_app_leave( ) 
+                     )->a( n = `showNavButton` b = mo_client->check_app_prev_stack( ) ).
 
     " ----- Filter form -----
-    DATA(form) = page->simple_form(
-                       title    = `Filter`
-                       editable = abap_true
-                   )->content( `form` ).
+    DATA(form) = page->ele( n = `SimpleForm` ns = `form` 
+                     )->a( n = `title` v = `Filter` 
+                     )->a( n = `editable` b = abap_true 
+                     )->ele( n = `content` ns = `form` ).
 
     " Lock Object with suggestions (table names from lock objects)
-    form->label( `Lock Object` )->input(
-        value           = mo_client->_bind_edit( mv_lock_object )
-        submit          = mo_client->_event( `BUTTON_SEARCH` )
-        suggestionitems = mo_client->_bind( mt_lock_objects )
-        showsuggestion  = abap_true
-    )->get( )->suggestion_items( )->get( )->list_item(
-        text           = `{VALUE}`
-        additionaltext = `{DESCR}` ).
+    form->tag( `Label` 
+        )->a( n = `text` v = `Lock Object` 
+        )->ele( `Input` 
+        )->a( n = `value` v = mo_client->_bind_edit( mv_lock_object ) 
+        )->a( n = `submit` v = mo_client->_event( `BUTTON_SEARCH` ) 
+        )->a( n = `suggestionItems` v = mo_client->_bind( mt_lock_objects ) 
+        )->a( n = `showSuggestion` b = abap_true 
+        )->ele( `suggestionItems` 
+        )->tag( n = `ListItem` ns = `core` 
+        )->a( n = `text` v = `{VALUE}` 
+        )->a( n = `additionalText` v = `{DESCR}` ).
 
     " ABAP User with suggestions
-    form->label( `ABAP User` )->input(
-        value           = mo_client->_bind_edit( mv_user )
-        submit          = mo_client->_event( `BUTTON_SEARCH` )
-        suggestionitems = mo_client->_bind( mt_users )
-        showsuggestion  = abap_true
-    )->get( )->suggestion_items( )->get( )->list_item(
-        text           = `{VALUE}`
-        additionaltext = `{DESCR}` ).
+    form->tag( `Label` 
+        )->a( n = `text` v = `ABAP User` 
+        )->ele( `Input` 
+        )->a( n = `value` v = mo_client->_bind_edit( mv_user ) 
+        )->a( n = `submit` v = mo_client->_event( `BUTTON_SEARCH` ) 
+        )->a( n = `suggestionItems` v = mo_client->_bind( mt_users ) 
+        )->a( n = `showSuggestion` b = abap_true 
+        )->ele( `suggestionItems` 
+        )->tag( n = `ListItem` ns = `core` 
+        )->a( n = `text` v = `{VALUE}` 
+        )->a( n = `additionalText` v = `{DESCR}` ).
 
     " Client with suggestions
-    form->label( `Client` )->input(
-        value           = mo_client->_bind_edit( mv_client )
-        submit          = mo_client->_event( `BUTTON_SEARCH` )
-        suggestionitems = mo_client->_bind( mt_clients )
-        showsuggestion  = abap_true
-    )->get( )->suggestion_items( )->get( )->list_item(
-        text           = `{VALUE}`
-        additionaltext = `{DESCR}` ).
+    form->tag( `Label` 
+        )->a( n = `text` v = `Client` 
+        )->ele( `Input` 
+        )->a( n = `value` v = mo_client->_bind_edit( mv_client ) 
+        )->a( n = `submit` v = mo_client->_event( `BUTTON_SEARCH` ) 
+        )->a( n = `suggestionItems` v = mo_client->_bind( mt_clients ) 
+        )->a( n = `showSuggestion` b = abap_true 
+        )->ele( `suggestionItems` 
+        )->tag( n = `ListItem` ns = `core` 
+        )->a( n = `text` v = `{VALUE}` 
+        )->a( n = `additionalText` v = `{DESCR}` ).
 
-    form->button(
-        text  = `Search`
-        press = mo_client->_event( `BUTTON_SEARCH` )
-        type  = `Emphasized` ).
+    form->tag( `Button` 
+        )->a( n = `text` v = `Search` 
+        )->a( n = `press` v = mo_client->_event( `BUTTON_SEARCH` ) 
+        )->a( n = `type` v = `Emphasized` ).
 
     " ----- Results table with multi-select -----
-    DATA(tab) = page->table(
-            items = |\{path: '{ mo_client->_bind_edit( val = mt_locks path = abap_true ) }', templateShareable: false\}|
-            mode  = `MultiSelect`
-        )->header_toolbar(
-            )->overflow_toolbar(
-                )->title( `Lock Entries`
-                )->toolbar_spacer(
-                )->button(
-                    icon  = `sap-icon://delete`
-                    text  = `Delete Selected`
-                    press = mo_client->_event( `BUTTON_DELETE` )
-                    type  = `Reject`
-        )->get_parent( )->get_parent( ).
+    DATA(tab) = page->ele( `Table` 
+                    )->a( n = `items` v = |\{path: '{ mo_client->_bind_edit( val = mt_locks path = abap_true ) }', templateShareable: false\}| 
+                    )->a( n = `mode` v = `MultiSelect` 
+                    )->ele( `headerToolbar` 
+                    )->ele( `OverflowToolbar` 
+                    )->tag( `Title` 
+                    )->a( n = `text` v = `Lock Entries` 
+                    )->tag( `ToolbarSpacer` 
+                    )->tag( `Button` 
+                    )->a( n = `icon` v = `sap-icon://delete` 
+                    )->a( n = `text` v = `Delete Selected` 
+                    )->a( n = `press` v = mo_client->_event( `BUTTON_DELETE` ) 
+                    )->a( n = `type` v = `Reject` 
+                    )->end( 
+                    )->end( ).
 
-    tab->columns(
-        )->column( )->text( `Lock Object` )->get_parent(
-        )->column( )->text( `Argument` )->get_parent(
-        )->column( )->text( `User` )->get_parent(
-        )->column( )->text( `Mode` )->get_parent(
-        )->column( )->text( `Client` )->get_parent(
-        )->column( )->text( `Date` )->get_parent(
-        )->column( )->text( `Time` ).
+    tab->ele( `columns` 
+        )->ele( `Column` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `Lock Object` 
+        )->end( 
+        )->ele( `Column` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `Argument` 
+        )->end( 
+        )->ele( `Column` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `User` 
+        )->end( 
+        )->ele( `Column` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `Mode` 
+        )->end( 
+        )->ele( `Column` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `Client` 
+        )->end( 
+        )->ele( `Column` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `Date` 
+        )->end( 
+        )->ele( `Column` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `Time` ).
 
-    tab->items( )->column_list_item( selected = `{SELKZ}`
-        )->cells(
-            )->text( `{GNAME}`
-            )->text( `{GARG}`
-            )->text( `{GUNAME}`
-            )->text( `{GMODE}`
-            )->text( `{GCLIENT}`
-            )->text( `{GTDATE}`
-            )->text( `{GTTIME}` ).
+    tab->ele( `items` 
+        )->ele( `ColumnListItem` 
+        )->a( n = `selected` v = `{SELKZ}` 
+        )->ele( `cells` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `{GNAME}` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `{GARG}` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `{GUNAME}` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `{GMODE}` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `{GCLIENT}` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `{GTDATE}` 
+        )->tag( `Text` 
+        )->a( n = `text` v = `{GTTIME}` ).
 
     mo_client->view_display( view->stringify( ) ).
 
