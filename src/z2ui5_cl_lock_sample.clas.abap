@@ -5,7 +5,9 @@ CLASS z2ui5_cl_lock_sample DEFINITION PUBLIC CREATE PUBLIC.
 
     " Input
     DATA mv_vbeln        TYPE vbak-vbeln.
+    DATA mv_mode         TYPE char1 VALUE 'E'.
     DATA mv_lock         TYPE abap_bool VALUE abap_true.
+    DATA mv_promote      TYPE abap_bool.
     DATA mv_unlock       TYPE abap_bool.
     DATA mv_read_sm12    TYPE abap_bool VALUE abap_true.
     DATA mv_read_ztab    TYPE abap_bool VALUE abap_true.
@@ -65,7 +67,7 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    IF mv_lock = abap_false AND mv_unlock = abap_false
+    IF mv_lock = abap_false AND mv_promote = abap_false AND mv_unlock = abap_false
        AND mv_read_sm12 = abap_false AND mv_read_ztab = abap_false.
       mv_msg_type    = 'Warning'.
       mv_msg_text    = 'Please select at least one action'.
@@ -87,9 +89,23 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         iv_obj_type = 'VBAK'
         iv_obj_key  = mv_vbeln
         it_params   = lt_params
+        iv_mode     = mv_mode
       ).
       mv_msg_type    = ls_result-msg_type.
-      mv_msg_text    = |Lock: { ls_result-msg_desc }|.
+      mv_msg_text    = |Lock ({ mv_mode }): { ls_result-msg_desc }|.
+      mv_msg_visible = abap_true.
+    ENDIF.
+
+    " Promote - turns an optimistic lock into an exclusive one right before
+    " saving; whoever promotes first wins, the other optimistic holders lose
+    IF mv_promote = abap_true.
+      ls_result = z2ui5_cl_lock_manager=>request(
+        iv_process  = z2ui5_cl_lock_manager=>c_process_promote
+        iv_obj_type = 'VBAK'
+        iv_obj_key  = mv_vbeln
+      ).
+      mv_msg_type    = ls_result-msg_type.
+      mv_msg_text    = |Promote: { ls_result-msg_desc }|.
       mv_msg_visible = abap_true.
     ENDIF.
 
@@ -135,11 +151,12 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
   METHOD on_clear.
 
-    CLEAR: mv_vbeln, mv_lock, mv_unlock,
+    CLEAR: mv_vbeln, mv_lock, mv_promote, mv_unlock,
            mv_read_sm12, mv_read_ztab,
            mv_msg_text, mv_msg_type, mv_msg_visible,
            mt_sm12, mt_entries.
 
+    mv_mode      = 'E'.
     mv_lock      = abap_true.
     mv_read_sm12 = abap_true.
     mv_read_ztab = abap_true.
@@ -200,12 +217,30 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `maxLength` v = '10' ).
 
     lo_content->tag( `Label`
+        )->a( n = `text` v = 'Lock Mode' ).
+    DATA(lo_modes) = lo_content->ele( `SegmentedButton`
+                         )->a( n = `selectedKey` v = io_client->_bind_edit( mv_mode )
+                         )->ele( `items` ).
+    lo_modes->tag( `SegmentedButtonItem`
+        )->a( n = `key` v = 'E'
+        )->a( n = `text` v = 'Exclusive (E)' ).
+    lo_modes->tag( `SegmentedButtonItem`
+        )->a( n = `key` v = 'S'
+        )->a( n = `text` v = 'Shared (S)' ).
+    lo_modes->tag( `SegmentedButtonItem`
+        )->a( n = `key` v = 'O'
+        )->a( n = `text` v = 'Optimistic (O)' ).
+
+    lo_content->tag( `Label`
         )->a( n = `text` v = 'Actions' ).
     DATA(lo_hbox) = lo_content->ele( `HBox`
                         )->a( n = `alignItems` v = 'Center' ).
     lo_hbox->tag( `CheckBox`
         )->a( n = `text` v = 'Lock'
         )->a( n = `selected` v = io_client->_bind_edit( mv_lock ) ).
+    lo_hbox->tag( `CheckBox`
+        )->a( n = `text` v = 'Promote'
+        )->a( n = `selected` v = io_client->_bind_edit( mv_promote ) ).
     lo_hbox->tag( `CheckBox`
         )->a( n = `text` v = 'Unlock'
         )->a( n = `selected` v = io_client->_bind_edit( mv_unlock ) ).
@@ -295,6 +330,10 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->tag( `Text`
         )->a( n = `text` v = 'Process' ).
     lo_cols_ztab->ele( `Column`
+        )->a( n = `width` v = '5rem'
+        )->tag( `Text`
+        )->a( n = `text` v = 'Mode' ).
+    lo_cols_ztab->ele( `Column`
         )->a( n = `width` v = '10rem'
         )->tag( `Text`
         )->a( n = `text` v = 'Obj Type' ).
@@ -323,6 +362,8 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `text` v = '{status}' ).
     lo_row_ztab->tag( `Text`
         )->a( n = `text` v = '{process}' ).
+    lo_row_ztab->tag( `Text`
+        )->a( n = `text` v = '{lock_mode}' ).
     lo_row_ztab->tag( `Text`
         )->a( n = `text` v = '{obj_type}' ).
     lo_row_ztab->tag( `Text`
