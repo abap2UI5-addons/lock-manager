@@ -252,6 +252,7 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `selected` v = io_client->_bind_edit( mv_read_ztab ) ).
 
     " ── Message Strip ─────────────────────────────────────────
+    " abap2ui5lint-disable-next-line unresolved-attribute-value -- mv_msg_type only ever holds Error, Warning, Information or Success, set here and in z2ui5_cl_lock_manager
     lo_page->tag( `MessageStrip`
         )->a( n = `text` v = io_client->_bind( mv_msg_text )
         )->a( n = `type` v = io_client->_bind( mv_msg_type )

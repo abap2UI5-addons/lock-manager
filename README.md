@@ -1,4 +1,4 @@
-[![ABAP](https://img.shields.io/badge/ABAP-Standard%20%E2%86%92%20Cloud-blue)](#setup)
+![ABAP](https://img.shields.io/badge/ABAP-7.54%20%E2%86%92%20Standard-blue)
 [![namespace](https://img.shields.io/badge/namespace-z2ui5__cl__lock-blue)](abaplint.jsonc)
 [![dependency](https://img.shields.io/badge/dependency-abap2UI5-blue)](https://github.com/abap2UI5/abap2UI5)
 [![abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fbadges%2Fabap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/check-abap2ui5.yaml)
