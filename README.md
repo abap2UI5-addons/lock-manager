@@ -1,33 +1,160 @@
-![ABAP](https://img.shields.io/badge/ABAP-7.54%20%E2%86%92%20Standard-blue)
-[![namespace](https://img.shields.io/badge/namespace-z2ui5__cl__lock-blue)](abaplint.jsonc)
-[![dependency](https://img.shields.io/badge/dependency-abap2UI5-blue)](https://github.com/abap2UI5/abap2UI5)
-[![abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fbadges%2Fabap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/check-abap2ui5.yaml)
-<br><br>
-[![abap-standard](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/abap-standard.yaml/badge.svg)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/abap-standard.yaml)
+# lock-manager
+
+[![abap2UI5-addons](https://img.shields.io/badge/abap2UI5--addons-library-1873b4)](https://github.com/abap2UI5-addons)
+[![ABAP](https://img.shields.io/badge/ABAP-Standard%20%E2%89%A5%207.54-blue)](#installation)
+[![abap2UI5](https://img.shields.io/badge/requires-abap2UI5-blue)](https://github.com/abap2UI5/abap2UI5)
+[![License](https://img.shields.io/github/license/abap2UI5-addons/lock-manager)](LICENSE)
 <br>
+[![ABAP Standard](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/lock-manager/abap-standard.yaml?branch=main&label=ABAP%20Standard)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/abap-standard.yaml)
 [![check-abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fbadges%2Fcheck-abap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/check-abap2ui5.yaml)
+[![abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fbadges%2Fabap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/check-abap2ui5.yaml)
 
-# Lock Manager
-
-A reusable, event-driven lock manager for [abap2UI5](https://github.com/abap2UI5/abap2UI5) apps — and any stateless ABAP web app — that need to hold an SAP lock across HTTP roundtrips.
+**Hold an SAP lock across the HTTP roundtrips of a stateless abap2UI5 app.**
+A reusable, event-driven lock manager for [abap2UI5](https://github.com/abap2UI5/abap2UI5) apps — and any stateless ABAP web app.
 
 Every stateless ABAP web call loses its SAP locks when the roundtrip ends. This addon decouples lock ownership from the web session: a **background handler** takes and holds the kernel locks on behalf of the web users, and a **persistent registry** records who actually holds what. On top of the classic exclusive lock it supports **shared** and **optimistic** locks, including the promotion of an optimistic lock to an exclusive one at save time.
 
-- [What you get](#what-you-get)
-- [Concepts](#concepts)
-  - [1. The SAP lock concept in brief](#1-the-sap-lock-concept-in-brief)
-  - [2. Why a stateless app cannot keep a lock](#2-why-a-stateless-app-cannot-keep-a-lock)
-  - [3. A proxy owner: the background handler](#3-a-proxy-owner-the-background-handler)
-  - [4. The registry: who really holds the lock](#4-the-registry-who-really-holds-the-lock)
-  - [5. Pessimistic and optimistic locking](#5-pessimistic-and-optimistic-locking)
-  - [6. Saving the data](#6-saving-the-data)
-  - [7. Lifecycle of the handler](#7-lifecycle-of-the-handler)
-  - [8. Housekeeping: auto-release and recovery](#8-housekeeping-auto-release-and-recovery)
-- [Setup](#setup)
-- [Calling the API](#calling-the-api)
-- [Reading lock state](#reading-lock-state)
-- [Repository layout](#repository-layout)
-- [Notes & limits](#notes--limits)
+> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org).
+
+## Why
+
+An abap2UI5 app gets a fresh session for every HTTP roundtrip, and an SAP
+lock ends with the session that took it - so a lock taken when the user opens
+an order for change is gone before the user sees the screen. A stateful
+session would keep it, at the price of one reserved work process context per
+user and locks that linger after a closed browser tab (see
+[Concepts](#2-why-a-stateless-app-cannot-keep-a-lock)).
+
+Good for:
+
+- **ABAP developers of abap2UI5 apps that change business objects** - with a
+  real SAP lock from a generated `ENQUEUE_*` module, which SAP GUI (VA02) and
+  every other lock-aware program respect.
+- **"Locked by X" with the real web user**, not the technical user that holds
+  the kernel lock.
+- **Optimistic locking** - open for change without blocking, first to save
+  wins.
+
+What it is not:
+
+- **Not a replacement for durable locks.** Where your release and programming
+  model offer them (RAP draft handling), they solve the problem at the kernel
+  level; the lock manager is for where that is not an option.
+
+## Installation
+
+**Requirements**
+
+- Standard ABAP 7.54 or higher
+- [abap2UI5](https://github.com/abap2UI5/abap2UI5)
+- a background user that may set the locks you request, and one background
+  work process while any lock is held (see [Notes & limits](#notes--limits))
+
+**Steps** - with [abapGit](https://abapgit.org):
+
+1. [abap2UI5](https://github.com/abap2UI5/abap2UI5)
+2. this repository (branch `main`) into a Z-package
+
+**Start** - set up the background handler once:
+
+1. **Create the event** in transaction **SM62** (tab *Background Events*, *New*): `LOCK_HANDLER` — and one `LOCK_HANDLER_<client>` per client if you use client-dependent jobs (e.g. `LOCK_HANDLER_100`, `LOCK_HANDLER_200`).
+2. **Create a variant** for report `Z2UI5_RE_LOCK_BACKGROUND` in SE38 (e.g. `DEFAULT`):
+   - `p_wait` — seconds between two looks at the queue (default and recommended: `2`)
+   - `p_user` — the user the job step runs as; must match it, the report refuses to run otherwise
+   - `p_time` — minutes after which a lock is released automatically (empty: never)
+3. **Schedule the job** in **SM36**, e.g. `Z2UI5_LOCK_HANDLER`, with one step: user = the background user, program `Z2UI5_RE_LOCK_BACKGROUND`, variant `DEFAULT`. Start condition: **After event** `LOCK_HANDLER` with **Periodic job** checked — otherwise the job starts once and never again. For client-dependent jobs, create one job per client (e.g. `Z2UI5_LOCK_HANDLER_100` on event `LOCK_HANDLER_100`) and remove the job on the global event.
+4. **Authorizations.** The background user must be allowed to set the locks you request.
+
+Then run the sample app `?app_start=z2ui5_cl_lock_sample` (lock / promote /
+unlock against `VBAK` / `ENQUEUE_EVVBAKE`, list SM12 and the registry) and
+the SM12-style admin app `?app_start=z2ui5_cl_app_sm12`.
+
+## Usage
+
+### Calling the API
+
+**Exclusive (pessimistic) lock:**
+
+```abap
+DATA(lt_params) = VALUE z2ui5_cl_lock_manager=>ty_params( (
+  name  = 'VBELN'
+  value = mv_vbeln
+) ).
+
+DATA(ls_result) = z2ui5_cl_lock_manager=>request(
+  iv_process  = z2ui5_cl_lock_manager=>c_process_enqueue
+  iv_function = 'ENQUEUE_EVVBAKE'
+  iv_obj_type = 'VBAK'
+  iv_obj_key  = mv_vbeln
+  it_params   = lt_params
+).
+
+" ls_result-msg_type = 'Success' | 'Error'
+" on a collision, ls_result-msg_desc = 'Locked by <USER>'
+```
+
+`type` in `ty_param` is optional — give it (`'VBAK-VBELN'`) to override the type the lock module declares.
+
+**Release** — only object type and key are needed; the handler releases with the parameters the lock was taken with:
+
+```abap
+ls_result = z2ui5_cl_lock_manager=>request(
+  iv_process  = z2ui5_cl_lock_manager=>c_process_dequeue
+  iv_obj_type = 'VBAK'
+  iv_obj_key  = mv_vbeln
+).
+```
+
+**Optimistic lock** — open for change, then promote at save time:
+
+```abap
+" when the user opens the order for change
+ls_result = z2ui5_cl_lock_manager=>request(
+  iv_process  = z2ui5_cl_lock_manager=>c_process_enqueue
+  iv_function = 'ENQUEUE_EVVBAKE'
+  iv_mode     = z2ui5_cl_lock_manager=>c_mode_optimistic
+  iv_obj_type = 'VBAK'
+  iv_obj_key  = mv_vbeln
+  it_params   = lt_params
+).
+
+" when the user saves - first to promote wins
+ls_result = z2ui5_cl_lock_manager=>request(
+  iv_process  = z2ui5_cl_lock_manager=>c_process_promote
+  iv_obj_type = 'VBAK'
+  iv_obj_key  = mv_vbeln
+).
+IF ls_result-msg_type = 'Error'.
+  " 'Optimistic lock lost: Changed by <USER> first' - reload the data
+ENDIF.
+" then release and save as described in "Saving the data"
+```
+
+**Shared lock** — `iv_mode = z2ui5_cl_lock_manager=>c_mode_shared`: several users may hold it, nobody can lock the object exclusively meanwhile.
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `iv_process` | — | `E` enqueue, `D` dequeue, `R` promote |
+| `iv_obj_type`, `iv_obj_key` | — | your identity for the object; the registry compares on these |
+| `iv_function` | — | the `ENQUEUE_*` module (enqueue only); the `DEQUEUE_*` module is derived from it |
+| `it_params` | — | key parameters of the lock module (enqueue only) |
+| `iv_mode` | `E` | `E` exclusive, `S` shared, `O` optimistic |
+| `iv_wait` | `abap_false` | pass `_WAIT = 'X'`: on a kernel collision, retry before giving up |
+| `iv_timeout` | `10` | seconds to wait for the handler's answer |
+| `iv_client_dependent` | `abap_false` | raise `LOCK_HANDLER_<client>` instead of `LOCK_HANDLER` |
+
+### Reading lock state
+
+```abap
+" Kernel lock entries (SM12-style) - all owned by the background user
+DATA(lt_sm12) = z2ui5_cl_lock_manager=>read_sm12_locks( ).
+
+" Who holds what - the registry
+DATA(lt_held) = z2ui5_cl_lock_manager=>read_lock_requests(
+  iv_status   = z2ui5_cl_lock_manager=>c_status_active
+  iv_obj_type = 'VBAK'
+).
+```
 
 ## What you get
 
@@ -193,102 +320,6 @@ The handler is a background job that is **started only when needed** and **stops
 
 Newer ABAP platform releases add **durable locks** to the SAP lock concept — locks whose lifetime is not bound to a session, which RAP builds on for draft handling. Where you can use them, they solve the problem of section 2 at the kernel level. The lock manager is for the releases and programming models where that is not an option.
 
-## Setup
-
-1. **Pull the repo** with abapGit into a Z-package.
-2. **Create the event** in transaction **SM62** (tab *Background Events*, *New*): `LOCK_HANDLER` — and one `LOCK_HANDLER_<client>` per client if you use client-dependent jobs (e.g. `LOCK_HANDLER_100`, `LOCK_HANDLER_200`).
-3. **Create a variant** for report `Z2UI5_RE_LOCK_BACKGROUND` in SE38 (e.g. `DEFAULT`):
-   - `p_wait` — seconds between two looks at the queue (default and recommended: `2`)
-   - `p_user` — the user the job step runs as; must match it, the report refuses to run otherwise
-   - `p_time` — minutes after which a lock is released automatically (empty: never)
-4. **Schedule the job** in **SM36**, e.g. `Z2UI5_LOCK_HANDLER`, with one step: user = the background user, program `Z2UI5_RE_LOCK_BACKGROUND`, variant `DEFAULT`. Start condition: **After event** `LOCK_HANDLER` with **Periodic job** checked — otherwise the job starts once and never again. For client-dependent jobs, create one job per client (e.g. `Z2UI5_LOCK_HANDLER_100` on event `LOCK_HANDLER_100`) and remove the job on the global event.
-5. **Authorizations.** The background user must be allowed to set the locks you request.
-
-## Calling the API
-
-**Exclusive (pessimistic) lock:**
-
-```abap
-DATA(lt_params) = VALUE z2ui5_cl_lock_manager=>ty_params( (
-  name  = 'VBELN'
-  value = mv_vbeln
-) ).
-
-DATA(ls_result) = z2ui5_cl_lock_manager=>request(
-  iv_process  = z2ui5_cl_lock_manager=>c_process_enqueue
-  iv_function = 'ENQUEUE_EVVBAKE'
-  iv_obj_type = 'VBAK'
-  iv_obj_key  = mv_vbeln
-  it_params   = lt_params
-).
-
-" ls_result-msg_type = 'Success' | 'Error'
-" on a collision, ls_result-msg_desc = 'Locked by <USER>'
-```
-
-`type` in `ty_param` is optional — give it (`'VBAK-VBELN'`) to override the type the lock module declares.
-
-**Release** — only object type and key are needed; the handler releases with the parameters the lock was taken with:
-
-```abap
-ls_result = z2ui5_cl_lock_manager=>request(
-  iv_process  = z2ui5_cl_lock_manager=>c_process_dequeue
-  iv_obj_type = 'VBAK'
-  iv_obj_key  = mv_vbeln
-).
-```
-
-**Optimistic lock** — open for change, then promote at save time:
-
-```abap
-" when the user opens the order for change
-ls_result = z2ui5_cl_lock_manager=>request(
-  iv_process  = z2ui5_cl_lock_manager=>c_process_enqueue
-  iv_function = 'ENQUEUE_EVVBAKE'
-  iv_mode     = z2ui5_cl_lock_manager=>c_mode_optimistic
-  iv_obj_type = 'VBAK'
-  iv_obj_key  = mv_vbeln
-  it_params   = lt_params
-).
-
-" when the user saves - first to promote wins
-ls_result = z2ui5_cl_lock_manager=>request(
-  iv_process  = z2ui5_cl_lock_manager=>c_process_promote
-  iv_obj_type = 'VBAK'
-  iv_obj_key  = mv_vbeln
-).
-IF ls_result-msg_type = 'Error'.
-  " 'Optimistic lock lost: Changed by <USER> first' - reload the data
-ENDIF.
-" then release and save as described in "Saving the data"
-```
-
-**Shared lock** — `iv_mode = z2ui5_cl_lock_manager=>c_mode_shared`: several users may hold it, nobody can lock the object exclusively meanwhile.
-
-| Parameter | Default | Meaning |
-| --- | --- | --- |
-| `iv_process` | — | `E` enqueue, `D` dequeue, `R` promote |
-| `iv_obj_type`, `iv_obj_key` | — | your identity for the object; the registry compares on these |
-| `iv_function` | — | the `ENQUEUE_*` module (enqueue only); the `DEQUEUE_*` module is derived from it |
-| `it_params` | — | key parameters of the lock module (enqueue only) |
-| `iv_mode` | `E` | `E` exclusive, `S` shared, `O` optimistic |
-| `iv_wait` | `abap_false` | pass `_WAIT = 'X'`: on a kernel collision, retry before giving up |
-| `iv_timeout` | `10` | seconds to wait for the handler's answer |
-| `iv_client_dependent` | `abap_false` | raise `LOCK_HANDLER_<client>` instead of `LOCK_HANDLER` |
-
-## Reading lock state
-
-```abap
-" Kernel lock entries (SM12-style) - all owned by the background user
-DATA(lt_sm12) = z2ui5_cl_lock_manager=>read_sm12_locks( ).
-
-" Who holds what - the registry
-DATA(lt_held) = z2ui5_cl_lock_manager=>read_lock_requests(
-  iv_status   = z2ui5_cl_lock_manager=>c_status_active
-  iv_obj_type = 'VBAK'
-).
-```
-
 ## Repository layout
 
 | Object | Purpose |
@@ -308,3 +339,22 @@ DATA(lt_held) = z2ui5_cl_lock_manager=>read_lock_requests(
 - **One user, one holder.** The registry identifies holders by SAP user name. The same user in two browser tabs is one holder, just as two SAP GUI sessions of one user would not lock each other out of a shared lock.
 - **SM12 shows the background user.** Use the registry (`read_lock_requests`, the sample app) to see who holds a lock; `SM12` shows the technical owner.
 - **Keep the data check at save time.** The lock manager coordinates lock-aware programs. The optimistic check on the data (timestamp, version, ETag) at save time remains your responsibility — see [section 5](#5-pessimistic-and-optimistic-locking).
+
+## Development
+
+```sh
+npm ci
+npm run check   # abaplint (Standard ABAP 7.54) and the abap2UI5 linter - what CI runs
+```
+
+The gates and the linter baseline are described in
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Contributing
+
+Issues and pull requests are welcome - see [CONTRIBUTING.md](CONTRIBUTING.md)
+and [AGENTS.md](AGENTS.md). Security issues: [SECURITY.md](SECURITY.md).
+
+## License
+
+MIT - see [LICENSE](LICENSE).
