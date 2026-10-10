@@ -117,16 +117,17 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
         )->tag( `Text`
         )->a( n = `text` t = |Are you sure you want to delete { lv_count } selected lock(s)? This action cannot be undone.| ).
 
-    popup->ele( `footer`
-        )->ele( `OverflowToolbar`
-        )->tag( `ToolbarSpacer`
-        )->tag( `Button`
-        )->a( n = `text` v = `Cancel`
-        )->a( n = `press` v = mo_client->_event_client( mo_client->cs_event-popup_close )
+    " beginButton/endButton, not footer: Dialog has the footer aggregation
+    " from UI5 1.110 on only, and below that the dialog had no buttons at all
+    popup->ele( `beginButton`
         )->tag( `Button`
         )->a( n = `text` v = `Delete`
         )->a( n = `press` v = mo_client->_event( `CONFIRM_DELETE` )
         )->a( n = `type` v = `Reject` ).
+    popup->ele( `endButton`
+        )->tag( `Button`
+        )->a( n = `text` v = `Cancel`
+        )->a( n = `press` v = mo_client->_event_client( mo_client->cs_event-popup_close ) ).
 
     mo_client->popup_display( popup->stringify( ) ).
 

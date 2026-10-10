@@ -195,7 +195,7 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `text` v = 'Clear'
         )->a( n = `press` v = io_client->_event( 'CLEAR' )
         )->a( n = `type` v = 'Default'
-        )->a( n = `icon` v = 'sap-icon://clear-all' ).
+        )->a( n = `icon` v = 'sap-icon://eraser' ).
 
     " ── Input Panel ───────────────────────────────────────────
     DATA(lo_panel_in) = lo_page->ele( `Panel`
