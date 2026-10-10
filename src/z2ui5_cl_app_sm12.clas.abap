@@ -65,7 +65,11 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
 
     IF client->check_on_init( ).
       mv_client = sy-mandt.
-      load_suggestions( ).
+      " the suggestions list users, clients and lock tables - only for whoever
+      " may display lock entries at all
+      IF check_auth_display( ) = abap_true.
+        load_suggestions( ).
+      ENDIF.
       view_display( ).
       RETURN.
     ENDIF.
