@@ -70,6 +70,12 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
+    " a restored draft (bookmark, browser Back/Forward) - draw the screen again
+    IF client->check_on_navigated( ).
+      view_display( ).
+      RETURN.
+    ENDIF.
+
     IF client->check_on_event( `BUTTON_SEARCH` ).
       on_search( ).
       client->view_model_update( ).
