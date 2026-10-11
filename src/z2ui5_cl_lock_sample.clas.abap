@@ -26,12 +26,9 @@ CLASS z2ui5_cl_lock_sample DEFINITION PUBLIC CREATE PUBLIC.
   PRIVATE SECTION.
 
     METHODS:
-      on_execute
-        IMPORTING io_client TYPE REF TO z2ui5_if_client,
-      on_refresh
-        IMPORTING io_client TYPE REF TO z2ui5_if_client,
-      on_clear
-        IMPORTING io_client TYPE REF TO z2ui5_if_client,
+      on_execute,
+      on_refresh,
+      on_clear,
       build_view
         IMPORTING io_client TYPE REF TO z2ui5_if_client.
 
@@ -43,11 +40,11 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
     CASE client->get( )-event.
       WHEN 'EXECUTE'.
-        on_execute( client ).
+        on_execute( ).
       WHEN 'REFRESH'.
-        on_refresh( client ).
+        on_refresh( ).
       WHEN 'CLEAR'.
-        on_clear( client ).
+        on_clear( ).
     ENDCASE.
 
     build_view( client ).
@@ -179,7 +176,7 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
                         )->a( n = `navButtonPress` v = io_client->_event_nav_app_leave( )
                         )->a( n = `showNavButton` b = io_client->check_app_prev_stack( ) ).
 
-    " ── Toolbar ───────────────────────────────────────────────
+    " -- Toolbar -----------------------------------------------
     DATA(lo_toolbar) = lo_page->ele( `Toolbar` ).
     lo_toolbar->tag( `Button`
         )->a( n = `text` v = 'Execute'
@@ -197,7 +194,7 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `type` v = 'Default'
         )->a( n = `icon` v = 'sap-icon://eraser' ).
 
-    " ── Input Panel ───────────────────────────────────────────
+    " -- Input Panel -------------------------------------------
     DATA(lo_panel_in) = lo_page->ele( `Panel`
                             )->a( n = `headerText` v = 'Input'
                             )->a( n = `expanded` v = 'true' ).
@@ -251,14 +248,14 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `text` v = 'Read Z-Table'
         )->a( n = `selected` v = io_client->_bind_edit( mv_read_ztab ) ).
 
-    " ── Message Strip ─────────────────────────────────────────
+    " -- Message Strip -----------------------------------------
     " abap2ui5lint-disable-next-line unresolved-attribute-value -- mv_msg_type only ever holds Error, Warning, Information or Success, set here and in z2ui5_cl_lock_manager
     lo_page->tag( `MessageStrip`
         )->a( n = `text` v = io_client->_bind( mv_msg_text )
         )->a( n = `type` v = io_client->_bind( mv_msg_type )
         )->a( n = `visible` v = io_client->_bind( mv_msg_visible ) ).
 
-    " ── SM12 Locks Panel ──────────────────────────────────────
+    " -- SM12 Locks Panel --------------------------------------
     DATA(lo_panel_sm12) = lo_page->ele( `Panel`
                               )->a( n = `headerText` v = 'SM12 Active Locks'
                               )->a( n = `expanded` v = 'true' ).
@@ -312,7 +309,7 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
     lo_row_sm12->tag( `Text`
         )->a( n = `text` v = '{ARGUMENT}' ).
 
-    " ── Z-Table Panel ─────────────────────────────────────────
+    " -- Z-Table Panel -----------------------------------------
     DATA(lo_panel_ztab) = lo_page->ele( `Panel`
                               )->a( n = `headerText` v = 'Z-Table Lock Requests'
                               )->a( n = `expanded` v = 'true' ).
