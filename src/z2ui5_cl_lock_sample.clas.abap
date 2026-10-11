@@ -195,7 +195,7 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `text` v = 'Clear'
         )->a( n = `press` v = io_client->_event( 'CLEAR' )
         )->a( n = `type` v = 'Default'
-        )->a( n = `icon` v = 'sap-icon://clear-all' ).
+        )->a( n = `icon` v = 'sap-icon://eraser' ).
 
     " ── Input Panel ───────────────────────────────────────────
     DATA(lo_panel_in) = lo_page->ele( `Panel`
@@ -298,19 +298,19 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
     DATA(lo_row_sm12) = lo_tab_sm12->ele( `ColumnListItem` ).
     lo_row_sm12->tag( `Text`
-        )->a( n = `text` v = '{lock_object}' ).
+        )->a( n = `text` v = '{LOCK_OBJECT}' ).
     lo_row_sm12->tag( `Text`
-        )->a( n = `text` v = '{user}' ).
+        )->a( n = `text` v = '{USER}' ).
     lo_row_sm12->tag( `Text`
-        )->a( n = `text` v = '{mode}' ).
+        )->a( n = `text` v = '{MODE}' ).
     lo_row_sm12->tag( `Text`
-        )->a( n = `text` v = '{client}' ).
+        )->a( n = `text` v = '{CLIENT}' ).
     lo_row_sm12->tag( `Text`
-        )->a( n = `text` v = '{date}' ).
+        )->a( n = `text` v = '{DATE}' ).
     lo_row_sm12->tag( `Text`
-        )->a( n = `text` v = '{time}' ).
+        )->a( n = `text` v = '{TIME}' ).
     lo_row_sm12->tag( `Text`
-        )->a( n = `text` v = '{argument}' ).
+        )->a( n = `text` v = '{ARGUMENT}' ).
 
     " ── Z-Table Panel ─────────────────────────────────────────
     DATA(lo_panel_ztab) = lo_page->ele( `Panel`
@@ -360,23 +360,23 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
     DATA(lo_row_ztab) = lo_tab_ztab->ele( `ColumnListItem` ).
     lo_row_ztab->tag( `Text`
-        )->a( n = `text` v = '{status}' ).
+        )->a( n = `text` v = '{STATUS}' ).
     lo_row_ztab->tag( `Text`
-        )->a( n = `text` v = '{process}' ).
+        )->a( n = `text` v = '{PROCESS}' ).
     lo_row_ztab->tag( `Text`
-        )->a( n = `text` v = '{lock_mode}' ).
+        )->a( n = `text` v = '{LOCK_MODE}' ).
     lo_row_ztab->tag( `Text`
-        )->a( n = `text` v = '{obj_type}' ).
+        )->a( n = `text` v = '{OBJ_TYPE}' ).
     lo_row_ztab->tag( `Text`
-        )->a( n = `text` v = '{obj_key}' ).
+        )->a( n = `text` v = '{OBJ_KEY}' ).
     lo_row_ztab->tag( `Text`
-        )->a( n = `text` v = '{function}' ).
+        )->a( n = `text` v = '{FUNCTION}' ).
     lo_row_ztab->tag( `Text`
-        )->a( n = `text` v = '{created_by}' ).
+        )->a( n = `text` v = '{CREATED_BY}' ).
     lo_row_ztab->tag( `Text`
-        )->a( n = `text` v = '{created_at}' ).
+        )->a( n = `text` v = '{CREATED_AT}' ).
     lo_row_ztab->tag( `Text`
-        )->a( n = `text` v = '{msg_text}' ).
+        )->a( n = `text` v = '{MSG_TEXT}' ).
 
     io_client->view_display( lo_view->stringify( ) ).
 
