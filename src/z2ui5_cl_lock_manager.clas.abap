@@ -982,16 +982,27 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
     DATA ls_row TYPE ty_lock_entry.
 
-    DO iv_timeout TIMES.
-      WAIT UP TO 1 SECONDS.
-
+    " read before every wait, not only after it: with a timeout of 0 the
+    " request was never read - no answer, an empty error text, and an
+    " enqueue left queued instead of withdrawn
+    DO.
+      CLEAR ls_row.
       SELECT SINGLE status, msg_text FROM z2ui5_t_05
         WHERE req_id = @iv_req_id
         INTO CORRESPONDING FIELDS OF @ls_row. "#EC CI_NOORDER
+      IF sy-subrc <> 0.
+        rs_result = VALUE #(
+          msg_type  = 'Error'
+          msg_title = 'Error'
+          msg_desc  = 'The request is no longer in the lock queue'
+        ).
+        RETURN.
+      ENDIF.
 
-      IF ls_row-status <> c_status_pending.
+      IF ls_row-status <> c_status_pending OR sy-index > iv_timeout.
         EXIT.
       ENDIF.
+      WAIT UP TO 1 SECONDS.
     ENDDO.
 
     IF ls_row-status = c_status_pending AND iv_withdraw = abap_true.
