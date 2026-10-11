@@ -591,7 +591,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
         AND lock_mode = @is_holder-lock_mode
         AND status    = @c_status_active
         AND req_id   <> @is_holder-req_id
-      INTO @DATA(lv_shared).
+      INTO @DATA(lv_shared). "#EC CI_NOORDER
 
     IF lv_shared = abap_false.
       call_lock_function( iv_function = to_dequeue( is_holder-function )
@@ -609,7 +609,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
           AND obj_key   = @is_holder-obj_key
           AND lock_mode = @c_mode_optimistic
           AND status    = @c_status_active
-        INTO @DATA(lv_optimistic).
+        INTO @DATA(lv_optimistic). "#EC CI_NOORDER
       IF lv_optimistic = abap_false.
         call_lock_function( iv_function = to_dequeue( is_holder-function )
                             iv_req_id   = is_holder-req_id
@@ -859,7 +859,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     SELECT SINGLE @abap_true FROM z2ui5_t_05
       WHERE status = @c_status_pending
          OR status = @c_status_active
-      INTO @rv_open.
+      INTO @rv_open. "#EC CI_NOORDER
 
   ENDMETHOD.
 
@@ -987,7 +987,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
       SELECT SINGLE status, msg_text FROM z2ui5_t_05
         WHERE req_id = @iv_req_id
-        INTO CORRESPONDING FIELDS OF @ls_row.
+        INTO CORRESPONDING FIELDS OF @ls_row. "#EC CI_NOORDER
 
       IF ls_row-status <> c_status_pending.
         EXIT.
@@ -1013,7 +1013,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       ENDIF.
       SELECT SINGLE status, msg_text FROM z2ui5_t_05
         WHERE req_id = @iv_req_id
-        INTO CORRESPONDING FIELDS OF @ls_row.
+        INTO CORRESPONDING FIELDS OF @ls_row. "#EC CI_NOORDER
     ENDIF.
 
     rs_result = SWITCH #( ls_row-status
