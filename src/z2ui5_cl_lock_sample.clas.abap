@@ -64,6 +64,10 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
       RETURN.
     ENDIF.
 
+    " the input carries no conversion exit: 4711 must lock 0000004711, the
+    " argument VA02 locks - not a key no sales order has
+    mv_vbeln = |{ mv_vbeln ALPHA = IN }|.
+
     IF mv_lock = abap_false AND mv_promote = abap_false AND mv_unlock = abap_false
        AND mv_read_sm12 = abap_false AND mv_read_ztab = abap_false.
       mv_msg_type    = 'Warning'.
