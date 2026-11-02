@@ -1,7 +1,7 @@
 # lock-manager
 
 [![abap2UI5-addons](https://img.shields.io/badge/abap2UI5--addons-library-1873b4)](https://github.com/abap2UI5-addons)
-[![ABAP](https://img.shields.io/badge/ABAP-Standard%20%E2%89%A5%207.54-blue)](#installation)
+[![ABAP](https://img.shields.io/badge/ABAP-Standard%20%E2%89%A5%207.50-blue)](#installation)
 [![abap2UI5](https://img.shields.io/badge/requires-abap2UI5-blue)](https://github.com/abap2UI5/abap2UI5)
 [![License](https://img.shields.io/github/license/abap2UI5-addons/lock-manager)](LICENSE)
 <br>
@@ -45,7 +45,7 @@ What it is not:
 
 **Requirements**
 
-- Standard ABAP 7.54 or higher
+- Standard ABAP 7.50 or higher; NetWeaver 7.02 with the downported branch `702`
 - [abap2UI5](https://github.com/abap2UI5/abap2UI5)
 - a background user that may set the locks you request, and one background
   work process while any lock is held (see [Notes & limits](#notes--limits))
@@ -53,7 +53,9 @@ What it is not:
 **Steps** - with [abapGit](https://abapgit.org):
 
 1. [abap2UI5](https://github.com/abap2UI5/abap2UI5)
-2. this repository (branch `main`) into a Z-package
+2. this repository into a Z-package, from the branch that fits your system:
+   `main` on 7.50 or higher, `702` (downported automatically from `main`) on
+   NetWeaver 7.02 - 7.40 - there pull abap2UI5 from its `702` branch as well
 
 **Start** - set up the background handler once:
 
@@ -344,7 +346,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 
 ```sh
 npm ci
-npm run check   # abaplint (Standard ABAP 7.54) and the abap2UI5 linter - what CI runs
+npm run check   # abaplint (Standard ABAP 7.50) and the abap2UI5 linter - what CI runs
 ```
 
 The gates and the linter baseline are described in

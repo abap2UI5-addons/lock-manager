@@ -284,7 +284,8 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
-    DATA(lv_req_id) = write_request(
+    DATA lv_req_id TYPE guid_32.
+    lv_req_id = write_request(
       iv_function = iv_function
       iv_process  = lv_process
       iv_obj_type = iv_obj_type
@@ -946,13 +947,15 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
     INSERT z2ui5_t_05 FROM @ls_req.
 
-    LOOP AT it_params INTO DATA(ls_p).
-      INSERT z2ui5_t_06 FROM @( VALUE #(
-        req_id = rv_req_id
-        name   = to_upper( ls_p-name )
-        type   = to_upper( ls_p-type )
-        value  = ls_p-value
-      ) ).
+    DATA ls_p   TYPE ty_param.
+    DATA ls_row TYPE z2ui5_t_06.
+    LOOP AT it_params INTO ls_p.
+      CLEAR ls_row.
+      ls_row-req_id = rv_req_id.
+      ls_row-name   = to_upper( ls_p-name ).
+      ls_row-type   = to_upper( ls_p-type ).
+      ls_row-value  = ls_p-value.
+      INSERT z2ui5_t_06 FROM @ls_row.
     ENDLOOP.
 
     " the handler runs in another session and must see the row
@@ -1078,13 +1081,50 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
   METHOD read_lock_requests.
 
+    " An empty filter matches every row: each one is a range that stays empty
+    " when its parameter is initial. (A host expression such as
+    " @iv_status IS INITIAL in the WHERE clause needs 7.54.)
+    DATA lr_status   TYPE RANGE OF char10.
+    DATA lr_obj_type TYPE RANGE OF char30.
+    DATA lr_obj_key  TYPE RANGE OF char50.
+    DATA lr_user     TYPE RANGE OF sy-uname.
+    DATA ls_status   LIKE LINE OF lr_status.
+    DATA ls_obj_type LIKE LINE OF lr_obj_type.
+    DATA ls_obj_key  LIKE LINE OF lr_obj_key.
+    DATA ls_user     LIKE LINE OF lr_user.
+
+    IF iv_status IS NOT INITIAL.
+      ls_status-sign   = 'I'.
+      ls_status-option = 'EQ'.
+      ls_status-low    = iv_status.
+      APPEND ls_status TO lr_status.
+    ENDIF.
+    IF iv_obj_type IS NOT INITIAL.
+      ls_obj_type-sign   = 'I'.
+      ls_obj_type-option = 'EQ'.
+      ls_obj_type-low    = iv_obj_type.
+      APPEND ls_obj_type TO lr_obj_type.
+    ENDIF.
+    IF iv_obj_key IS NOT INITIAL.
+      ls_obj_key-sign   = 'I'.
+      ls_obj_key-option = 'EQ'.
+      ls_obj_key-low    = iv_obj_key.
+      APPEND ls_obj_key TO lr_obj_key.
+    ENDIF.
+    IF iv_user IS NOT INITIAL.
+      ls_user-sign   = 'I'.
+      ls_user-option = 'EQ'.
+      ls_user-low    = iv_user.
+      APPEND ls_user TO lr_user.
+    ENDIF.
+
     SELECT req_id, obj_type, obj_key, function, process, lock_mode,
            status, created_by, created_at, msg_text
       FROM z2ui5_t_05
-      WHERE ( @iv_status   IS INITIAL OR status     = @iv_status   )
-        AND ( @iv_obj_type IS INITIAL OR obj_type   = @iv_obj_type )
-        AND ( @iv_obj_key  IS INITIAL OR obj_key    = @iv_obj_key  )
-        AND ( @iv_user     IS INITIAL OR created_by = @iv_user     )
+      WHERE status     IN @lr_status
+        AND obj_type   IN @lr_obj_type
+        AND obj_key    IN @lr_obj_key
+        AND created_by IN @lr_user
       ORDER BY created_at DESCENDING
       INTO TABLE @rt_entries.
 
