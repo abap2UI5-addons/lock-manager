@@ -15,11 +15,33 @@ and CI gates every change. It is installed with abapGit and depends on the
 | Path | Contents |
 | --- | --- |
 | `src/` | The lock manager (`z2ui5_cl_lock_manager`), the SM12-style browser app, a sample, and the two registry tables (`z2ui5_t_05`, `z2ui5_t_06`) |
+| `src/z2ui5_cl_lock_context`, `src/z2ui5_cx_lock_error` | Utility context and its exception — **vendored copies from abap-util, see below** |
 
 The kernel `ENQUEUE_*` is bound to the calling session and dies with the HTTP
 roundtrip. This addon funnels every lock request through a background user that
 holds the kernel enqueue, and keeps a persistent registry of who locked what —
 so a lock can outlive the request that took it.
+
+## The utility copy principle
+
+`z2ui5_cl_lock_context` is a **renamed copy** of `zabaputil_cl_util_context`
+from the [abap-util](https://github.com/abap-util/abap-util) master catalog,
+**trimmed to the members this repository uses** (the lock reads and the lock
+types) plus the private helpers, types and constants those need.
+`z2ui5_cx_lock_error` is `zabaputil_cx_util_error`, renamed and copied as-is.
+abapGit has no dependency management, so utilities are vendored, not referenced.
+
+1. **Nothing from the core's frozen `src/99/01`.** `z2ui5_cl_util*` and
+   `z2ui5_cx_util_error` are kept in abap2UI5 for compatibility only; every
+   utility call goes through `z2ui5_cl_lock_context`, every utility exception
+   is `z2ui5_cx_lock_error`.
+2. **New methods are added locally** to `z2ui5_cl_lock_context`; if abap-util
+   already has the method, copy it from there with its private helpers.
+3. **Periodic AI sync-back** merges what was added or fixed here into abap-util.
+4. **Keep the copies close to the master.** `abaplint.jsonc` excludes both files
+   from the style rules the master does not follow
+   (`prefer_raise_exception_new`, `cyclomatic_complexity`, `catch_and_raise`);
+   do not reformat them.
 
 ## Dependencies
 

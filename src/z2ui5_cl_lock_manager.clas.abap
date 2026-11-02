@@ -1053,7 +1053,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   METHOD read_sm12_locks.
 
     TRY.
-        DATA(lt_locks) = z2ui5_cl_util_ext=>lock_read(
+        DATA(lt_locks) = z2ui5_cl_lock_context=>lock_read(
           lock_object = iv_lock_object
           user        = iv_user
         ).

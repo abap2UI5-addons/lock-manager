@@ -154,7 +154,7 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
     ENDIF.
 
     TRY.
-        DATA(lt_locks) = z2ui5_cl_util_ext=>lock_read(
+        DATA(lt_locks) = z2ui5_cl_lock_context=>lock_read(
           lock_object = mv_lock_object
           user        = mv_user
           client      = mv_client ).
@@ -193,11 +193,11 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA lt_lock  TYPE z2ui5_cl_util_ext=>ty_t_lock.
+    DATA lt_lock  TYPE z2ui5_cl_lock_context=>ty_t_lock.
     DATA lv_count TYPE i.
 
     LOOP AT mt_locks INTO DATA(ls_lock) WHERE selkz = abap_true.
-      APPEND VALUE z2ui5_cl_util_ext=>ty_s_lock(
+      APPEND VALUE z2ui5_cl_lock_context=>ty_s_lock(
         lock_object = ls_lock-gname
         argument    = ls_lock-garg
         mode        = ls_lock-gmode
@@ -214,7 +214,7 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    IF z2ui5_cl_util_ext=>lock_delete_entries( lt_lock ) = abap_true.
+    IF z2ui5_cl_lock_context=>lock_delete_entries( lt_lock ) = abap_true.
       DELETE mt_locks WHERE selkz = abap_true.
       mo_client->message_toast_display( |{ lv_count } lock(s) deleted.| ).
     ELSE.
