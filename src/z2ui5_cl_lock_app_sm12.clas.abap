@@ -1,4 +1,4 @@
-CLASS z2ui5_cl_app_sm12 DEFINITION
+CLASS z2ui5_cl_lock_app_sm12 DEFINITION
   PUBLIC.
 
   PUBLIC SECTION.
@@ -57,7 +57,7 @@ CLASS z2ui5_cl_app_sm12 DEFINITION
 ENDCLASS.
 
 
-CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
+CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
   METHOD z2ui5_if_app~main.
 

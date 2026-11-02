@@ -87,7 +87,7 @@ nothing built with it.
 
 ## Conventions
 
-- ABAP object names follow ``z2ui5_cl_lock_*`, `z2ui5_cl_app_sm12``, enforced by `abaplint.jsonc`.
+- ABAP object names follow `z2ui5_cl_lock_*`, enforced by `abaplint.jsonc`.
 - English for code, comments, commit messages, pull requests and issues.
 - All text files are LF-only (`.gitattributes`).
 - The ecosystem-wide rules — workflow and npm-script naming, toolchain versions,

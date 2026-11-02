@@ -50,6 +50,8 @@ What it is not:
 - a background user that may set the locks you request, and one background
   work process while any lock is held (see [Notes & limits](#notes--limits))
 
+**Renamed (2026-11).** The SM12-style admin app `z2ui5_cl_app_sm12` is `z2ui5_cl_lock_app_sm12` now, in the addon's own `lock` segment. After the pull abapGit lists the old class as deleted in the repository: delete it, and update `?app_start=` links.
+
 **Steps** - with [abapGit](https://abapgit.org):
 
 1. [abap2UI5](https://github.com/abap2UI5/abap2UI5)
@@ -69,7 +71,7 @@ What it is not:
 
 Then run the sample app `?app_start=z2ui5_cl_lock_sample` (lock / promote /
 unlock against `VBAK` / `ENQUEUE_EVVBAKE`, list SM12 and the registry) and
-the SM12-style admin app `?app_start=z2ui5_cl_app_sm12`.
+the SM12-style admin app `?app_start=z2ui5_cl_lock_app_sm12`.
 
 ## Usage
 
@@ -167,7 +169,7 @@ DATA(lt_held) = z2ui5_cl_lock_manager=>read_lock_requests(
 - A **background handler** (`z2ui5_re_lock_background`) that owns the kernel locks, runs only while it is needed and never twice
 - **Auto-release** after a configurable lifetime and **recovery** of all locks after a handler restart
 - A ready-to-run **sample app** (`z2ui5_cl_lock_sample`) against `VBAK / ENQUEUE_EVVBAKE`
-- An **SM12-style admin app** (`z2ui5_cl_app_sm12`) to browse and delete kernel lock entries
+- An **SM12-style admin app** (`z2ui5_cl_lock_app_sm12`) to browse and delete kernel lock entries
 
 ## Concepts
 
@@ -331,7 +333,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 | `z2ui5_t_06` | Key parameters per request (req_id, name, type, value) |
 | `z2ui5_re_lock_background` | The background handler — a thin report around `run_handler` |
 | `z2ui5_cl_lock_sample` | abap2UI5 sample app — lock (E/S/O) / promote / unlock / list SM12 / list registry |
-| `z2ui5_cl_app_sm12` | abap2UI5 admin app — browse and delete kernel lock entries (SM12-style, with authorization checks) |
+| `z2ui5_cl_lock_app_sm12` | abap2UI5 admin app — browse and delete kernel lock entries (SM12-style, with authorization checks) |
 
 ## Notes & limits
 
