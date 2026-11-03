@@ -4,6 +4,14 @@
     "src/z2ui5_cl_lock_app_sm12.clas.abap|obsolete-binder||_bind_edit|": 1,
     "src/z2ui5_cl_lock_app_sm12.clas.abap|obsolete-frontend-event||_event_client|": 1,
     "src/z2ui5_cl_lock_app_sm12.clas.abap|obsolete-model-update||view_model_update|": 1,
-    "src/z2ui5_cl_lock_sample.clas.abap|obsolete-binder||_bind_edit|": 1
+    "src/z2ui5_cl_lock_app_sm12.clas.abap|unknown-binding-path|sap.m.Text|text|GARG": 1,
+    "src/z2ui5_cl_lock_app_sm12.clas.abap|unknown-binding-path|sap.m.Text|text|GCLIENT": 1,
+    "src/z2ui5_cl_lock_app_sm12.clas.abap|unknown-binding-path|sap.m.Text|text|GMODE": 1,
+    "src/z2ui5_cl_lock_app_sm12.clas.abap|unknown-binding-path|sap.m.Text|text|GNAME": 1,
+    "src/z2ui5_cl_lock_app_sm12.clas.abap|unknown-binding-path|sap.m.Text|text|GTDATE": 1,
+    "src/z2ui5_cl_lock_app_sm12.clas.abap|unknown-binding-path|sap.m.Text|text|GTTIME": 1,
+    "src/z2ui5_cl_lock_app_sm12.clas.abap|unknown-binding-path|sap.m.Text|text|GUNAME": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|obsolete-binder||_bind_edit|": 1,
+    "src/z2ui5_cl_lock_sample.clas.abap|unused-directive||abap2ui5lint-disable-next-line|unresolved-attribute-value": 1
   }
 }
