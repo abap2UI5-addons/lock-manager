@@ -117,9 +117,7 @@ CLASS z2ui5_cl_lock_manager DEFINITION PUBLIC FINAL CREATE PUBLIC.
       END OF ty_interface,
       ty_interfaces TYPE STANDARD TABLE OF ty_interface WITH DEFAULT KEY.
 
-    CONSTANTS:
-      c_registry  TYPE c LENGTH 30 VALUE 'Z2UI5_T_05',
-      c_guard_key TYPE c LENGTH 12 VALUE 'LOCK_HANDLER'.
+    CONSTANTS c_guard_key TYPE c LENGTH 12 VALUE 'LOCK_HANDLER'.
 
     CLASS-METHODS:
 
@@ -199,6 +197,12 @@ CLASS z2ui5_cl_lock_manager DEFINITION PUBLIC FINAL CREATE PUBLIC.
           VALUE(rv_subrc) TYPE sy-subrc,
 
       guard_unlock,
+
+      " the registry table's name, read from its type - a namespace rename
+      " rewrites the type, never a literal
+      registry_name
+        RETURNING
+          VALUE(rv_name) TYPE rstable-tabname,
 
       is_handler_running
         RETURNING
@@ -874,7 +878,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " typed like the module's parameters - a static call checks them too
     DATA lv_tabname TYPE rstable-tabname.
     DATA lv_varkey  TYPE rstable-varkey.
-    lv_tabname = c_registry.
+    lv_tabname = registry_name( ).
     lv_varkey  = |{ sy-mandt }{ c_guard_key }|.
 
     CALL FUNCTION 'ENQUEUE_E_TABLE'
@@ -892,11 +896,19 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD registry_name.
+
+    DATA ls_registry TYPE z2ui5_t_05.
+    rv_name = cl_abap_typedescr=>describe_by_data( ls_registry )->get_relative_name( ).
+
+  ENDMETHOD.
+
+
   METHOD guard_unlock.
 
     DATA lv_tabname TYPE rstable-tabname.
     DATA lv_varkey  TYPE rstable-varkey.
-    lv_tabname = c_registry.
+    lv_tabname = registry_name( ).
     lv_varkey  = |{ sy-mandt }{ c_guard_key }|.
 
     CALL FUNCTION 'DEQUEUE_E_TABLE'
