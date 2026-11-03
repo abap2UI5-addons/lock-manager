@@ -14,7 +14,7 @@ A reusable, event-driven lock manager for [abap2UI5](https://github.com/abap2UI5
 
 Every stateless ABAP web call loses its SAP locks when the roundtrip ends. This addon decouples lock ownership from the web session: a **background handler** takes and holds the kernel locks on behalf of the web users, and a **persistent registry** records who actually holds what. On top of the classic exclusive lock it supports **shared** and **optimistic** locks, including the promotion of an optimistic lock to an exclusive one at save time.
 
-> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org).
+> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org). Documentation: [abap2ui5-addons.github.io/lock-manager](https://abap2ui5-addons.github.io/lock-manager/).
 
 ## Why
 

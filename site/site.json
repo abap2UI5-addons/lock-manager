@@ -1,0 +1,5 @@
+{
+  "repo": "lock-manager",
+  "title": "Lock Manager",
+  "description": "Hold a real SAP lock across the roundtrips of a stateless app."
+}
