@@ -344,6 +344,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 | `z2ui5_re_lock_background` | The background handler — a thin report around `run_handler` |
 | `z2ui5_cl_lock_sample` | abap2UI5 sample app — lock (E/S/O) / promote / unlock / list SM12 / list registry |
 | `z2ui5_cl_lock_app_sm12` | abap2UI5 admin app — browse and delete kernel lock entries (SM12-style, with authorization checks) |
+| `z2ui5_cl_lock_context`, `z2ui5_cx_lock_error` | Utility context (lock reads and types) and its exception — vendored copies from [abap-util](https://github.com/abap-util/abap-util) |
 
 ## Notes & limits
 

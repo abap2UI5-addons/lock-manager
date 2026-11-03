@@ -2,6 +2,7 @@
   "name": "lock-manager",
   "private": true,
   "version": "1.0.0",
+  "description": "Event-driven lock manager that holds SAP locks across the roundtrips of stateless abap2UI5 apps.",
   "license": "MIT",
   "scripts": {
     "lint": "abaplint ./abaplint.jsonc",
@@ -28,5 +29,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/abap2UI5-addons/lock-manager.git"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/abap2UI5-addons/lock-manager/issues"
+  },
+  "homepage": "https://github.com/abap2UI5-addons/lock-manager#readme"
 }

@@ -34,7 +34,7 @@ Every stateless ABAP web call loses its SAP locks when the roundtrip ends. This 
 
 ## Requirements
 
-- Standard ABAP 7.54 or higher
+- Standard ABAP 7.50 or higher; NetWeaver 7.02 - 7.40 with the downported branch 702
 - abap2UI5
 - ABAP Cloud: no (Standard ABAP only)
 - A background user that may set the requested locks and one background work process while any lock is held
