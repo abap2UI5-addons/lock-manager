@@ -14,7 +14,7 @@ A reusable, event-driven lock manager for [abap2UI5](https://github.com/abap2UI5
 
 Every stateless ABAP web call loses its SAP locks when the roundtrip ends. This addon decouples lock ownership from the web session: a **background handler** takes and holds the kernel locks on behalf of the web users, and a **persistent registry** records who actually holds what. On top of the classic exclusive lock it supports **shared** and **optimistic** locks, including the promotion of an optimistic lock to an exclusive one at save time.
 
-> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org).
+> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org). Documentation: [abap2ui5-addons.github.io/lock-manager](https://abap2ui5-addons.github.io/lock-manager/).
 
 ## Why
 
@@ -344,6 +344,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 | `z2ui5_re_lock_background` | The background handler — a thin report around `run_handler` |
 | `z2ui5_cl_lock_sample` | abap2UI5 sample app — lock (E/S/O) / promote / unlock / list SM12 / list registry |
 | `z2ui5_cl_lock_app_sm12` | abap2UI5 admin app — browse and delete kernel lock entries (SM12-style, with authorization checks) |
+| `z2ui5_cl_lock_context`, `z2ui5_cx_lock_error` | Utility context (lock reads and types) and its exception — vendored copies from [abap-util](https://github.com/abap-util/abap-util) |
 
 ## Notes & limits
 
@@ -358,7 +359,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 
 ```sh
 npm ci
-npm run check   # abaplint (Standard ABAP 7.50) and the abap2UI5 linter - what CI runs
+npm run check   # abaplint (Standard ABAP 7.50), the abap2UI5 linter and the rename check - what CI runs
 ```
 
 The gates and the linter baseline are described in

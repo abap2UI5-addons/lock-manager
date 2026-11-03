@@ -338,11 +338,11 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
     lo_cols_ztab->ele( `Column`
         )->a( n = `width` v = '10rem'
         )->tag( `Text`
-        )->a( n = `text` v = 'Obj Type' ).
+        )->a( n = `text` v = 'Object Type' ).
     lo_cols_ztab->ele( `Column`
         )->a( n = `width` v = '12rem'
         )->tag( `Text`
-        )->a( n = `text` v = 'Obj Key' ).
+        )->a( n = `text` v = 'Object Key' ).
     lo_cols_ztab->ele( `Column`
         )->a( n = `width` v = '18rem'
         )->tag( `Text`

@@ -2,6 +2,7 @@
   "name": "lock-manager",
   "private": true,
   "version": "1.0.0",
+  "description": "Event-driven lock manager that holds SAP locks across the roundtrips of stateless abap2UI5 apps.",
   "license": "MIT",
   "scripts": {
     "lint": "abaplint ./abaplint.jsonc",
@@ -13,7 +14,9 @@
     "abaplintpathfix": "sed -i 's|\"/\\.\\./\\.\\./src/|\"/src/|g' abaplint.jsonc",
     "downport": "abaplint --fix .github/abaplint/abap_702.jsonc && npm run syfixes",
     "auto_downport": "(abaplint --fix .github/abaplint/abap_702.jsonc || true) && npm run syfixes && npm run strip_trailing_ws && abaplint .github/abaplint/abap_702.jsonc && cp -f .github/abaplint/abap_702.jsonc abaplint.jsonc && npm run abaplintpathfix",
-    "rename": "node .github/scripts/rename.mjs"
+    "rename": "node .github/scripts/rename.mjs",
+    "site": "npm run build --prefix site",
+    "site:dev": "npm run dev --prefix site"
   },
   "devDependencies": {
     "@abap2ui5/linter": "^0.9.0",
@@ -22,5 +25,13 @@
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abap2UI5-addons/lock-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abap2UI5-addons/lock-manager/issues"
+  },
+  "homepage": "https://github.com/abap2UI5-addons/lock-manager#readme"
 }

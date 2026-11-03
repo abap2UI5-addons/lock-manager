@@ -22,6 +22,7 @@ executed.
 | --- | --- |
 | `npm run lint` | abaplint: syntax and style, resolved against the abap2UI5 core |
 | `npm run check:abap2ui5` | [abap2UI5-linter](https://github.com/abap2UI5/linter): the app class and the view it builds, judged together — controls, members, bindings, the UI5 version floor, and a headless render of every view |
+| `npm run rename` | the namespace rename still applies cleanly (`.github/scripts/rename.mjs`) |
 
 The abap2UI5-linter keeps a baseline in `abap2ui5lint-baseline.json`. Findings
 recorded there are counted and never listed; a **new** finding fails the gate,
