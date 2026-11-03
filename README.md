@@ -1,7 +1,7 @@
 # lock-manager
 
 [![abap2UI5-addons](https://img.shields.io/badge/abap2UI5--addons-library-1873b4)](https://github.com/abap2UI5-addons)
-[![ABAP](https://img.shields.io/badge/ABAP-Standard%20%E2%89%A5%207.54-blue)](#installation)
+[![ABAP](https://img.shields.io/badge/ABAP-Standard%20%E2%89%A5%207.50-blue)](#installation)
 [![abap2UI5](https://img.shields.io/badge/requires-abap2UI5-blue)](https://github.com/abap2UI5/abap2UI5)
 [![License](https://img.shields.io/github/license/abap2UI5-addons/lock-manager)](LICENSE)
 <br>
@@ -45,15 +45,19 @@ What it is not:
 
 **Requirements**
 
-- Standard ABAP 7.54 or higher
+- Standard ABAP 7.50 or higher; NetWeaver 7.02 with the downported branch `702`
 - [abap2UI5](https://github.com/abap2UI5/abap2UI5)
 - a background user that may set the locks you request, and one background
   work process while any lock is held (see [Notes & limits](#notes--limits))
 
+**Renamed (2026-11).** The SM12-style admin app `z2ui5_cl_app_sm12` is `z2ui5_cl_lock_app_sm12` now, in the addon's own `lock` segment. After the pull abapGit lists the old class as deleted in the repository: delete it, and update `?app_start=` links.
+
 **Steps** - with [abapGit](https://abapgit.org):
 
 1. [abap2UI5](https://github.com/abap2UI5/abap2UI5)
-2. this repository (branch `main`) into a Z-package
+2. this repository into a Z-package, from the branch that fits your system:
+   `main` on 7.50 or higher, `702` (downported automatically from `main`) on
+   NetWeaver 7.02 - 7.40 - there pull abap2UI5 from its `702` branch as well
 
 **Start** - set up the background handler once:
 
@@ -67,7 +71,17 @@ What it is not:
 
 Then run the sample app `?app_start=z2ui5_cl_lock_sample` (lock / promote /
 unlock against `VBAK` / `ENQUEUE_EVVBAKE`, list SM12 and the registry) and
-the SM12-style admin app `?app_start=z2ui5_cl_app_sm12`.
+the SM12-style admin app `?app_start=z2ui5_cl_lock_app_sm12`.
+
+### Parallel installation (namespace rename)
+
+To run a second copy next to the original in the same system, rename it the
+way abap2UI5 itself is renamed: run the workflow **build-rename** (Actions →
+build-rename → Run workflow) with the name your abap2UI5 installation was
+renamed to - e.g. `ZMYUI5` or `/CA2UI5/`. It pushes the branch `rename_<name>`, in
+which every object and every reference to abap2UI5 and to the addons this one
+needs carries that name; pull it with abapGit. Rename abap2UI5 and every addon
+of the installation with the same name.
 
 ## Usage
 
@@ -165,7 +179,7 @@ DATA(lt_held) = z2ui5_cl_lock_manager=>read_lock_requests(
 - A **background handler** (`z2ui5_re_lock_background`) that owns the kernel locks, runs only while it is needed and never twice
 - **Auto-release** after a configurable lifetime and **recovery** of all locks after a handler restart
 - A ready-to-run **sample app** (`z2ui5_cl_lock_sample`) against `VBAK / ENQUEUE_EVVBAKE`
-- An **SM12-style admin app** (`z2ui5_cl_app_sm12`) to browse and delete kernel lock entries
+- An **SM12-style admin app** (`z2ui5_cl_lock_app_sm12`) to browse and delete kernel lock entries
 
 ## Concepts
 
@@ -329,7 +343,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 | `z2ui5_t_06` | Key parameters per request (req_id, name, type, value) |
 | `z2ui5_re_lock_background` | The background handler — a thin report around `run_handler` |
 | `z2ui5_cl_lock_sample` | abap2UI5 sample app — lock (E/S/O) / promote / unlock / list SM12 / list registry |
-| `z2ui5_cl_app_sm12` | abap2UI5 admin app — browse and delete kernel lock entries (SM12-style, with authorization checks) |
+| `z2ui5_cl_lock_app_sm12` | abap2UI5 admin app — browse and delete kernel lock entries (SM12-style, with authorization checks) |
 
 ## Notes & limits
 
@@ -344,7 +358,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 
 ```sh
 npm ci
-npm run check   # abaplint (Standard ABAP 7.54) and the abap2UI5 linter - what CI runs
+npm run check   # abaplint (Standard ABAP 7.50) and the abap2UI5 linter - what CI runs
 ```
 
 The gates and the linter baseline are described in

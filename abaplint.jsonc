@@ -22,11 +22,11 @@
     }
   ],
   "syntax": {
-    // v754 is the floor this code actually needs, not a round number:
-    // read_lock_requests( ) writes its WHERE clause as
-    // ( @iv_status IS INITIAL OR status = @iv_status ), which does not parse
-    // below it. Claiming more would exclude systems that can run this.
-    "version": "v754",
+    // v750, the same floor as the core. read_lock_requests( ) filters with
+    // ranges, not with a host expression such as @iv_status IS INITIAL in the
+    // WHERE clause, which needs 7.54. Older releases install the 702 branch
+    // (publish-702).
+    "version": "v750",
     // ^Z (not "."): this addon reads on-prem DDIC types and calls the kernel
     // ENQUEUE function modules, which the API set does not ship - with "."
     // every one of them is a false "not found". ^Z keeps the own namespace
@@ -279,6 +279,78 @@
     "when_others_last": true,
     "whitespace_end": true,
     "wrong_abapdoc_position": true,
-    "xml_bom": true
+    "xml_bom": true,
+    // added 2026-11: the rules of abap2UI5's abaplint.jsonc this repository
+    // passes without a finding, with its settings, and allowed_object_types
+    // with the object types this repository ships
+    "abapdoc_html_tag": true,
+    "abapdoc_leading_at": true,
+    "abapdoc_parameter_names": true,
+    "abapdoc_shorttext_length": true,
+    "allowed_object_types": {
+      "allowed": [
+        "CLAS",
+        "DEVC",
+        "PROG",
+        "TABL"
+      ]
+    },
+    "bound_check_after_create": true,
+    "cds_comment_style": true,
+    "cds_legacy_view": true,
+    "changing_sorted_line": true,
+    "clear_after_declaration": true,
+    "clear_before_overwrite": true,
+    "constant_condition": true,
+    "copy_of_initial_variable": true,
+    "delete_index_in_loop": true,
+    "final_newline": true,
+    // an allow list matching no object: the default, empty, allows every one
+    "forbidden_kernel_write": {
+      "allow": [
+        "^$"
+      ]
+    },
+    "inline_packed_computation": true,
+    "is_assigned_in_loop": true,
+    "no_mandt_in_database_operations": true,
+    "object_naming": {
+      "severity": "Error",
+      "patternKind": "required",
+      "ignoreNames": [],
+      "ignorePatterns": [],
+      "clas": "^Z2UI5_C(L|X)",
+      "intf": "^Z2UI5_IF",
+      "prog": "^Z",
+      "fugr": "^Z",
+      "tabl": "^Z",
+      "ttyp": "^Z",
+      "dtel": "^Z",
+      "doma": "^Z",
+      "msag": "^Z",
+      "tran": "^Z",
+      "enqu": "^EZ",
+      "auth": "^Z",
+      "pinf": "^Z",
+      "idoc": "^Z",
+      "xslt": "^Z",
+      "ssfo": "^Z",
+      "ssst": "^Z",
+      "shlp": "^Z"
+    },
+    "range_row_values": true,
+    "redundant_cast": true,
+    "smim_consistency": true,
+    "sort_empty_key": true,
+    "subrc_after_assign": true,
+    // The rest of abap2UI5's rule set, added 2026-11 with their findings
+    // fixed, no exceptions.
+    "if_in_if": true,
+    "unnecessary_chaining": true,
+    "unnecessary_return": true,
+    // added 2026-11: newer abaplint rules that report nothing here
+    "abapdoc_short_link": true,
+    "boolean_flag_via_if": true,
+    "cast_via_generic_reference": true
   }
 }

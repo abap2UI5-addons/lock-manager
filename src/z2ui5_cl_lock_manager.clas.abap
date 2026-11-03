@@ -117,9 +117,7 @@ CLASS z2ui5_cl_lock_manager DEFINITION PUBLIC FINAL CREATE PUBLIC.
       END OF ty_interface,
       ty_interfaces TYPE STANDARD TABLE OF ty_interface WITH DEFAULT KEY.
 
-    CONSTANTS:
-      c_registry  TYPE c LENGTH 30 VALUE 'Z2UI5_T_05',
-      c_guard_key TYPE c LENGTH 12 VALUE 'LOCK_HANDLER'.
+    CONSTANTS c_guard_key TYPE c LENGTH 12 VALUE 'LOCK_HANDLER'.
 
     CLASS-METHODS:
 
@@ -199,6 +197,12 @@ CLASS z2ui5_cl_lock_manager DEFINITION PUBLIC FINAL CREATE PUBLIC.
           VALUE(rv_subrc) TYPE sy-subrc,
 
       guard_unlock,
+
+      " the registry table's name, read from its type - a namespace rename
+      " rewrites the type, never a literal
+      registry_name
+        RETURNING
+          VALUE(rv_name) TYPE rstable-tabname,
 
       is_handler_running
         RETURNING
@@ -284,7 +288,8 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
-    DATA(lv_req_id) = write_request(
+    DATA lv_req_id TYPE guid_32.
+    lv_req_id = write_request(
       iv_function = iv_function
       iv_process  = lv_process
       iv_obj_type = iv_obj_type
@@ -418,18 +423,18 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " join the registry - the kernel would merely count them up.
     DATA(lv_kernel) = xsdbool( NOT line_exists( lt_active[ lock_mode = is_req-lock_mode ] ) ).
 
-    IF lv_kernel = abap_true.
-      IF call_lock_function( EXPORTING iv_function = is_req-function
-                                       iv_req_id   = is_req-req_id
-                                       iv_mode     = is_req-lock_mode
-                                       iv_enqueue  = abap_true
-                                       iv_wait     = is_req-lock_wait
-                             IMPORTING ev_msg      = lv_msg ) = abap_false.
-        finish_request( is_req    = is_req
-                        iv_status = c_status_error
-                        iv_msg    = lv_msg ).
-        RETURN.
-      ENDIF.
+    " AND stops at a false operand, so the kernel is asked only if needed
+    IF     lv_kernel = abap_true
+       AND call_lock_function( EXPORTING iv_function = is_req-function
+                                         iv_req_id   = is_req-req_id
+                                         iv_mode     = is_req-lock_mode
+                                         iv_enqueue  = abap_true
+                                         iv_wait     = is_req-lock_wait
+                               IMPORTING ev_msg      = lv_msg ) = abap_false.
+      finish_request( is_req    = is_req
+                      iv_status = c_status_error
+                      iv_msg    = lv_msg ).
+      RETURN.
     ENDIF.
 
     IF finish_request( is_req    = is_req
@@ -873,7 +878,7 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " typed like the module's parameters - a static call checks them too
     DATA lv_tabname TYPE rstable-tabname.
     DATA lv_varkey  TYPE rstable-varkey.
-    lv_tabname = c_registry.
+    lv_tabname = registry_name( ).
     lv_varkey  = |{ sy-mandt }{ c_guard_key }|.
 
     CALL FUNCTION 'ENQUEUE_E_TABLE'
@@ -891,11 +896,19 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD registry_name.
+
+    DATA ls_registry TYPE z2ui5_t_05.
+    rv_name = cl_abap_typedescr=>describe_by_data( ls_registry )->get_relative_name( ).
+
+  ENDMETHOD.
+
+
   METHOD guard_unlock.
 
     DATA lv_tabname TYPE rstable-tabname.
     DATA lv_varkey  TYPE rstable-varkey.
-    lv_tabname = c_registry.
+    lv_tabname = registry_name( ).
     lv_varkey  = |{ sy-mandt }{ c_guard_key }|.
 
     CALL FUNCTION 'DEQUEUE_E_TABLE'
@@ -946,13 +959,15 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
     INSERT z2ui5_t_05 FROM @ls_req.
 
-    LOOP AT it_params INTO DATA(ls_p).
-      INSERT z2ui5_t_06 FROM @( VALUE #(
-        req_id = rv_req_id
-        name   = to_upper( ls_p-name )
-        type   = to_upper( ls_p-type )
-        value  = ls_p-value
-      ) ).
+    DATA ls_p   TYPE ty_param.
+    DATA ls_row TYPE z2ui5_t_06.
+    LOOP AT it_params INTO ls_p.
+      CLEAR ls_row.
+      ls_row-req_id = rv_req_id.
+      ls_row-name   = to_upper( ls_p-name ).
+      ls_row-type   = to_upper( ls_p-type ).
+      ls_row-value  = ls_p-value.
+      INSERT z2ui5_t_06 FROM @ls_row.
     ENDLOOP.
 
     " the handler runs in another session and must see the row
@@ -1078,13 +1093,50 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
   METHOD read_lock_requests.
 
+    " An empty filter matches every row: each one is a range that stays empty
+    " when its parameter is initial. (A host expression such as
+    " @iv_status IS INITIAL in the WHERE clause needs 7.54.)
+    DATA lr_status   TYPE RANGE OF char10.
+    DATA lr_obj_type TYPE RANGE OF char30.
+    DATA lr_obj_key  TYPE RANGE OF char50.
+    DATA lr_user     TYPE RANGE OF sy-uname.
+    DATA ls_status   LIKE LINE OF lr_status.
+    DATA ls_obj_type LIKE LINE OF lr_obj_type.
+    DATA ls_obj_key  LIKE LINE OF lr_obj_key.
+    DATA ls_user     LIKE LINE OF lr_user.
+
+    IF iv_status IS NOT INITIAL.
+      ls_status-sign   = 'I'.
+      ls_status-option = 'EQ'.
+      ls_status-low    = iv_status.
+      APPEND ls_status TO lr_status.
+    ENDIF.
+    IF iv_obj_type IS NOT INITIAL.
+      ls_obj_type-sign   = 'I'.
+      ls_obj_type-option = 'EQ'.
+      ls_obj_type-low    = iv_obj_type.
+      APPEND ls_obj_type TO lr_obj_type.
+    ENDIF.
+    IF iv_obj_key IS NOT INITIAL.
+      ls_obj_key-sign   = 'I'.
+      ls_obj_key-option = 'EQ'.
+      ls_obj_key-low    = iv_obj_key.
+      APPEND ls_obj_key TO lr_obj_key.
+    ENDIF.
+    IF iv_user IS NOT INITIAL.
+      ls_user-sign   = 'I'.
+      ls_user-option = 'EQ'.
+      ls_user-low    = iv_user.
+      APPEND ls_user TO lr_user.
+    ENDIF.
+
     SELECT req_id, obj_type, obj_key, function, process, lock_mode,
            status, created_by, created_at, msg_text
       FROM z2ui5_t_05
-      WHERE ( @iv_status   IS INITIAL OR status     = @iv_status   )
-        AND ( @iv_obj_type IS INITIAL OR obj_type   = @iv_obj_type )
-        AND ( @iv_obj_key  IS INITIAL OR obj_key    = @iv_obj_key  )
-        AND ( @iv_user     IS INITIAL OR created_by = @iv_user     )
+      WHERE status     IN @lr_status
+        AND obj_type   IN @lr_obj_type
+        AND obj_key    IN @lr_obj_key
+        AND created_by IN @lr_user
       ORDER BY created_at DESCENDING
       INTO TABLE @rt_entries.
 

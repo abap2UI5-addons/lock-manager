@@ -1,4 +1,4 @@
-CLASS z2ui5_cl_app_sm12 DEFINITION
+CLASS z2ui5_cl_lock_app_sm12 DEFINITION
   PUBLIC.
 
   PUBLIC SECTION.
@@ -57,7 +57,7 @@ CLASS z2ui5_cl_app_sm12 DEFINITION
 ENDCLASS.
 
 
-CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
+CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
   METHOD z2ui5_if_app~main.
 
@@ -95,7 +95,6 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
       client->popup_destroy( ).
       on_delete( ).
       client->view_model_update( ).
-      RETURN.
     ENDIF.
 
   ENDMETHOD.
@@ -166,18 +165,24 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
         RETURN.
     ENDTRY.
 
-    mt_locks = VALUE #(
-      FOR ls_lock IN lt_locks (
-        gname   = ls_lock-lock_object
-        garg    = ls_lock-argument
-        guname  = ls_lock-user
-        gmode   = ls_lock-mode
-        gclient = ls_lock-client
-        gtdate  = ls_lock-date
-        gttime  = ls_lock-time
-        gusr    = ls_lock-owner
-        gusrvb  = ls_lock-owner_vb
-      ) ).
+    " explicit loops, not VALUE #( FOR ... ): the 702 downport cannot rewrite
+    " the LOOP ... INTO DATA( ) it turns a FOR into
+    DATA ls_lock LIKE LINE OF lt_locks.
+    DATA ls_row  LIKE LINE OF mt_locks.
+    CLEAR mt_locks.
+    LOOP AT lt_locks INTO ls_lock.
+      CLEAR ls_row.
+      ls_row-gname   = ls_lock-lock_object.
+      ls_row-garg    = ls_lock-argument.
+      ls_row-guname  = ls_lock-user.
+      ls_row-gmode   = ls_lock-mode.
+      ls_row-gclient = ls_lock-client.
+      ls_row-gtdate  = ls_lock-date.
+      ls_row-gttime  = ls_lock-time.
+      ls_row-gusr    = ls_lock-owner.
+      ls_row-gusrvb  = ls_lock-owner_vb.
+      APPEND ls_row TO mt_locks.
+    ENDLOOP.
 
     mo_client->message_toast_display( |Found { lines( mt_locks ) } lock(s).| ).
 
@@ -230,13 +235,17 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
 
     AUTHORITY-CHECK OBJECT 'S_ADMI_FCD'
       ID 'S_ADMI_FCD' FIELD 'ENQ'.
-    rv_ok = xsdbool( sy-subrc = 0 ).
+    IF sy-subrc = 0.
+      rv_ok = abap_true.
+    ENDIF.
 
     " ENQA implicitly grants display rights too.
     IF rv_ok = abap_false.
       AUTHORITY-CHECK OBJECT 'S_ADMI_FCD'
         ID 'S_ADMI_FCD' FIELD 'ENQA'.
-      rv_ok = xsdbool( sy-subrc = 0 ).
+      IF sy-subrc = 0.
+        rv_ok = abap_true.
+      ENDIF.
     ENDIF.
 
   ENDMETHOD.
@@ -246,7 +255,9 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
 
     AUTHORITY-CHECK OBJECT 'S_ADMI_FCD'
       ID 'S_ADMI_FCD' FIELD 'ENQA'.
-    rv_ok = xsdbool( sy-subrc = 0 ).
+    IF sy-subrc = 0.
+      rv_ok = abap_true.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -254,35 +265,66 @@ CLASS z2ui5_cl_app_sm12 IMPLEMENTATION.
   METHOD load_suggestions.
 
     " Lock table names that belong to SAP enqueue objects (e.g., MARA, VBAK)
+    TYPES:
+      BEGIN OF ty_lock_table,
+        tabname  TYPE dd26s-tabname,
+        viewname TYPE dd25l-viewname,
+      END OF ty_lock_table.
+    DATA lt_lock_tables TYPE STANDARD TABLE OF ty_lock_table WITH DEFAULT KEY.
+    " ORDER BY keeps UP TO downportable: without it the 702 downport leaves
+    " the statement half rewritten
     SELECT DISTINCT s~tabname, l~viewname
       FROM dd26s AS s
       INNER JOIN dd25l AS l ON l~viewname = s~viewname
       WHERE l~aggtype = 'E'
-      INTO TABLE @DATA(lt_lock_tables)
+      ORDER BY s~tabname, l~viewname
+      INTO TABLE @lt_lock_tables
       UP TO 500 ROWS.
 
-    mt_lock_objects = VALUE #( FOR ls IN lt_lock_tables (
-      value = ls-tabname
-      descr = ls-viewname ) ).
+    " explicit loops, not VALUE #( FOR ... ): the 702 downport cannot rewrite
+    " the LOOP ... INTO DATA( ) it turns a FOR into
+    DATA ls_suggestion  TYPE ty_suggestion.
+    DATA ls_lock_table  LIKE LINE OF lt_lock_tables.
+    CLEAR mt_lock_objects.
+    LOOP AT lt_lock_tables INTO ls_lock_table.
+      ls_suggestion-value = ls_lock_table-tabname.
+      ls_suggestion-descr = ls_lock_table-viewname.
+      APPEND ls_suggestion TO mt_lock_objects.
+    ENDLOOP.
 
     " SAP clients from T000
+    TYPES:
+      BEGIN OF ty_client,
+        mandt TYPE t000-mandt,
+        mtext TYPE t000-mtext,
+      END OF ty_client.
+    DATA lt_clients TYPE STANDARD TABLE OF ty_client WITH DEFAULT KEY.
+    DATA ls_client  TYPE ty_client.
     SELECT mandt, mtext
       FROM t000
-      INTO TABLE @DATA(lt_clients).
+      INTO TABLE @lt_clients.
 
-    mt_clients = VALUE #( FOR lc IN lt_clients (
-      value = lc-mandt
-      descr = lc-mtext ) ).
+    CLEAR mt_clients.
+    LOOP AT lt_clients INTO ls_client.
+      ls_suggestion-value = ls_client-mandt.
+      ls_suggestion-descr = ls_client-mtext.
+      APPEND ls_suggestion TO mt_clients.
+    ENDLOOP.
 
     " Active SAP users (limited set)
+    DATA lt_users TYPE STANDARD TABLE OF usr02-bname WITH DEFAULT KEY.
+    DATA lv_user  TYPE usr02-bname.
     SELECT bname
       FROM usr02
-      INTO TABLE @DATA(lt_users)
+      INTO TABLE @lt_users
       UP TO 200 ROWS.
 
-    mt_users = VALUE #( FOR lu IN lt_users (
-      value = lu-bname
-      descr = `` ) ).
+    CLEAR mt_users.
+    CLEAR ls_suggestion.
+    LOOP AT lt_users INTO lv_user.
+      ls_suggestion-value = lv_user.
+      APPEND ls_suggestion TO mt_users.
+    ENDLOOP.
 
   ENDMETHOD.
 
