@@ -87,7 +87,8 @@ nothing built with it.
 
 ## Conventions
 
-- ABAP object names follow `z2ui5_cl_lock_*`, enforced by `abaplint.jsonc`.
+- Classes are named `z2ui5_cl_lock_*`. No check enforces the prefix
+  (`object_naming` only requires `^Z2UI5_C(L|X)`) - keep to it in review.
 - English for code, comments, commit messages, pull requests and issues.
 - All text files are LF-only (`.gitattributes`).
 - The ecosystem-wide rules — workflow and npm-script naming, toolchain versions,

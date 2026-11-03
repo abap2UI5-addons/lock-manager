@@ -358,7 +358,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 
 ```sh
 npm ci
-npm run check   # abaplint (Standard ABAP 7.50) and the abap2UI5 linter - what CI runs
+npm run check   # abaplint (Standard ABAP 7.50), the abap2UI5 linter and the rename check - what CI runs
 ```
 
 The gates and the linter baseline are described in
