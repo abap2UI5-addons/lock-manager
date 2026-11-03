@@ -419,18 +419,18 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " join the registry - the kernel would merely count them up.
     DATA(lv_kernel) = xsdbool( NOT line_exists( lt_active[ lock_mode = is_req-lock_mode ] ) ).
 
-    IF lv_kernel = abap_true.
-      IF call_lock_function( EXPORTING iv_function = is_req-function
-                                       iv_req_id   = is_req-req_id
-                                       iv_mode     = is_req-lock_mode
-                                       iv_enqueue  = abap_true
-                                       iv_wait     = is_req-lock_wait
-                             IMPORTING ev_msg      = lv_msg ) = abap_false.
-        finish_request( is_req    = is_req
-                        iv_status = c_status_error
-                        iv_msg    = lv_msg ).
-        RETURN.
-      ENDIF.
+    " AND stops at a false operand, so the kernel is asked only if needed
+    IF     lv_kernel = abap_true
+       AND call_lock_function( EXPORTING iv_function = is_req-function
+                                         iv_req_id   = is_req-req_id
+                                         iv_mode     = is_req-lock_mode
+                                         iv_enqueue  = abap_true
+                                         iv_wait     = is_req-lock_wait
+                               IMPORTING ev_msg      = lv_msg ) = abap_false.
+      finish_request( is_req    = is_req
+                      iv_status = c_status_error
+                      iv_msg    = lv_msg ).
+      RETURN.
     ENDIF.
 
     IF finish_request( is_req    = is_req

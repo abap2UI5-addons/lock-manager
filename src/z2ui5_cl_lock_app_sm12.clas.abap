@@ -95,7 +95,6 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
       client->popup_destroy( ).
       on_delete( ).
       client->view_model_update( ).
-      RETURN.
     ENDIF.
 
   ENDMETHOD.

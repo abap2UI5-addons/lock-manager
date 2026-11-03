@@ -36,20 +36,20 @@ START-OF-SELECTION.
 
   " Validate that executing user matches configured background user
   IF p_user <> sy-uname.
-    WRITE: / |ERROR: Configured user '{ p_user }' does not match | &
-             |executing user '{ sy-uname }'.|.
+    WRITE / |ERROR: Configured user '{ p_user }' does not match | &
+            |executing user '{ sy-uname }'.|.
     RETURN.
   ENDIF.
 
-  WRITE: / |Lock handler started at { sy-datum DATE = USER } | &
-           |{ sy-uzeit TIME = USER } by { sy-uname }.|.
+  WRITE / |Lock handler started at { sy-datum DATE = USER } | &
+          |{ sy-uzeit TIME = USER } by { sy-uname }.|.
 
   " loops until no request is pending and no lock is held
   DATA(gv_log) = z2ui5_cl_lock_manager=>run_handler(
     iv_wait_seconds    = p_wait
     iv_release_minutes = p_time ).
 
-  WRITE: / gv_log.
+  WRITE / gv_log.
   GET TIME.
-  WRITE: / |Lock handler ended at { sy-datum DATE = USER } | &
-           |{ sy-uzeit TIME = USER }.|.
+  WRITE / |Lock handler ended at { sy-datum DATE = USER } | &
+          |{ sy-uzeit TIME = USER }.|.
