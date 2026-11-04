@@ -53,6 +53,11 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
 
   METHOD on_execute.
+    DATA temp1 TYPE string.
+    DATA temp2 TYPE z2ui5_cl_lock_manager=>ty_params.
+    DATA temp3 LIKE LINE OF temp2.
+    DATA lt_params LIKE temp2.
+      DATA ls_result TYPE z2ui5_cl_lock_manager=>ty_result.
 
     CLEAR: mv_msg_text, mv_msg_type, mv_msg_visible,
            mt_sm12, mt_entries.
@@ -66,7 +71,13 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
     " the input carries no conversion exit: 4711 must lock 0000004711, the
     " argument VA02 locks - not a key no sales order has
-    mv_vbeln = |{ mv_vbeln ALPHA = IN }|.
+
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input  = mv_vbeln
+      IMPORTING
+        output = temp1.
+mv_vbeln = |{ temp1 }|.
 
     IF mv_lock = abap_false AND mv_promote = abap_false AND mv_unlock = abap_false
        AND mv_read_sm12 = abap_false AND mv_read_ztab = abap_false.
@@ -76,15 +87,20 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA(lt_params) = VALUE z2ui5_cl_lock_manager=>ty_params( (
-      name  = 'VBELN'
-      type  = 'VBAK-VBELN'
-      value = mv_vbeln
-    ) ).
+
+    CLEAR temp2.
+
+    temp3-name = 'VBELN'.
+    temp3-type = 'VBAK-VBELN'.
+    temp3-value = mv_vbeln.
+    INSERT temp3 INTO TABLE temp2.
+
+    lt_params = temp2.
 
     " Lock
     IF mv_lock = abap_true.
-      DATA(ls_result) = z2ui5_cl_lock_manager=>request(
+
+      ls_result = z2ui5_cl_lock_manager=>request(
         iv_function = 'ENQUEUE_EVVBAKE'
         iv_process  = z2ui5_cl_lock_manager=>c_process_enqueue
         iv_obj_type = 'VBAK'
@@ -167,7 +183,23 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
   METHOD build_view.
 
-    DATA(lo_view) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA lo_view TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_page TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_toolbar TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_panel_in TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_form TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_content TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_modes TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_hbox TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_panel_sm12 TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_tab_sm12 TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_cols_sm12 TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_row_sm12 TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_panel_ztab TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_tab_ztab TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_cols_ztab TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA lo_row_ztab TYPE REF TO z2ui5_cl_ui5_view_builder.
+    lo_view = z2ui5_cl_ui5_view_builder=>factory(
                         )->ele( n = `View` ns = `mvc`
                         )->a( n = `xmlns` v = `sap.m`
                         )->a( n = `xmlns:mvc` v = `sap.ui.core.mvc`
@@ -175,13 +207,15 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
                         )->a( n = `displayBlock` v = `true`
                         )->a( n = `height` v = `100%` ).
 
-    DATA(lo_page) = lo_view->ele( `Page`
+
+    lo_page = lo_view->ele( `Page`
                         )->a( n = `title` v = 'Lock Handler Demo'
                         )->a( n = `navButtonPress` v = io_client->_event_nav_app_leave( )
                         )->a( n = `showNavButton` b = io_client->check_app_prev_stack( ) ).
 
     " -- Toolbar -----------------------------------------------
-    DATA(lo_toolbar) = lo_page->ele( `Toolbar` ).
+
+    lo_toolbar = lo_page->ele( `Toolbar` ).
     lo_toolbar->tag( `Button`
         )->a( n = `text` v = 'Execute'
         )->a( n = `press` v = io_client->_event( 'EXECUTE' )
@@ -199,16 +233,19 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `icon` v = 'sap-icon://eraser' ).
 
     " -- Input Panel -------------------------------------------
-    DATA(lo_panel_in) = lo_page->ele( `Panel`
+
+    lo_panel_in = lo_page->ele( `Panel`
                             )->a( n = `headerText` v = 'Input'
                             )->a( n = `expanded` v = 'true' ).
-    DATA(lo_form)     = lo_panel_in->ele( n = `SimpleForm` ns = `form`
+
+    lo_form     = lo_panel_in->ele( n = `SimpleForm` ns = `form`
                             )->a( n = `layout` v = 'ResponsiveGridLayout'
                             )->a( n = `editable` v = 'true' ).
     " an aggregation tag takes the namespace of its own control, so a
     " SimpleForm's content is form:content - unprefixed it resolves against
     " the default xmlns and UI5 goes looking for a sap.m.content control
-    DATA(lo_content) = lo_form->ele( n = `content` ns = `form` ).
+
+    lo_content = lo_form->ele( n = `content` ns = `form` ).
 
     lo_content->tag( `Label`
         )->a( n = `text` v = 'Sales Order (VBELN)' ).
@@ -219,7 +256,8 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
     lo_content->tag( `Label`
         )->a( n = `text` v = 'Lock Mode' ).
-    DATA(lo_modes) = lo_content->ele( `SegmentedButton`
+
+    lo_modes = lo_content->ele( `SegmentedButton`
                          )->a( n = `selectedKey` v = io_client->_bind_edit( mv_mode )
                          )->ele( `items` ).
     lo_modes->tag( `SegmentedButtonItem`
@@ -234,7 +272,8 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
     lo_content->tag( `Label`
         )->a( n = `text` v = 'Actions' ).
-    DATA(lo_hbox) = lo_content->ele( `HBox`
+
+    lo_hbox = lo_content->ele( `HBox`
                         )->a( n = `alignItems` v = 'Center' ).
     lo_hbox->tag( `CheckBox`
         )->a( n = `text` v = 'Lock'
@@ -260,15 +299,18 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `visible` v = io_client->_bind( mv_msg_visible ) ).
 
     " -- SM12 Locks Panel --------------------------------------
-    DATA(lo_panel_sm12) = lo_page->ele( `Panel`
+
+    lo_panel_sm12 = lo_page->ele( `Panel`
                               )->a( n = `headerText` v = 'SM12 Active Locks'
                               )->a( n = `expanded` v = 'true' ).
 
-    DATA(lo_tab_sm12) = lo_panel_sm12->ele( `Table`
+
+    lo_tab_sm12 = lo_panel_sm12->ele( `Table`
                             )->a( n = `items` v = io_client->_bind( mt_sm12 )
                             )->a( n = `mode` v = 'None' ).
 
-    DATA(lo_cols_sm12) = lo_tab_sm12->ele( `columns` ).
+
+    lo_cols_sm12 = lo_tab_sm12->ele( `columns` ).
     lo_cols_sm12->ele( `Column`
         )->a( n = `width` v = '15rem'
         )->tag( `Text`
@@ -297,7 +339,8 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->tag( `Text`
         )->a( n = `text` v = 'Argument' ).
 
-    DATA(lo_row_sm12) = lo_tab_sm12->ele( `ColumnListItem` ).
+
+    lo_row_sm12 = lo_tab_sm12->ele( `ColumnListItem` ).
     lo_row_sm12->tag( `Text`
         )->a( n = `text` v = '{LOCK_OBJECT}' ).
     lo_row_sm12->tag( `Text`
@@ -314,15 +357,18 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->a( n = `text` v = '{ARGUMENT}' ).
 
     " -- Z-Table Panel -----------------------------------------
-    DATA(lo_panel_ztab) = lo_page->ele( `Panel`
+
+    lo_panel_ztab = lo_page->ele( `Panel`
                               )->a( n = `headerText` v = 'Z-Table Lock Requests'
                               )->a( n = `expanded` v = 'true' ).
 
-    DATA(lo_tab_ztab) = lo_panel_ztab->ele( `Table`
+
+    lo_tab_ztab = lo_panel_ztab->ele( `Table`
                             )->a( n = `items` v = io_client->_bind( mt_entries )
                             )->a( n = `mode` v = 'None' ).
 
-    DATA(lo_cols_ztab) = lo_tab_ztab->ele( `columns` ).
+
+    lo_cols_ztab = lo_tab_ztab->ele( `columns` ).
     lo_cols_ztab->ele( `Column`
         )->a( n = `width` v = '8rem'
         )->tag( `Text`
@@ -359,7 +405,8 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
         )->tag( `Text`
         )->a( n = `text` v = 'Message' ).
 
-    DATA(lo_row_ztab) = lo_tab_ztab->ele( `ColumnListItem` ).
+
+    lo_row_ztab = lo_tab_ztab->ele( `ColumnListItem` ).
     lo_row_ztab->tag( `Text`
         )->a( n = `text` v = '{STATUS}' ).
     lo_row_ztab->tag( `Text`

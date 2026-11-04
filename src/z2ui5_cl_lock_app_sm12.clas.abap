@@ -24,7 +24,7 @@ CLASS z2ui5_cl_lock_app_sm12 DEFINITION
         gusr    TYPE seqg3-gusr,
         gusrvb  TYPE seqg3-gusrvb,
       END OF ty_lock_row,
-      ty_lock_rows TYPE STANDARD TABLE OF ty_lock_row WITH EMPTY KEY.
+      ty_lock_rows TYPE STANDARD TABLE OF ty_lock_row WITH DEFAULT KEY.
 
     DATA mt_locks TYPE ty_lock_rows.
 
@@ -34,7 +34,7 @@ CLASS z2ui5_cl_lock_app_sm12 DEFINITION
         value TYPE string,
         descr TYPE string,
       END OF ty_suggestion,
-      ty_suggestions TYPE STANDARD TABLE OF ty_suggestion WITH EMPTY KEY.
+      ty_suggestions TYPE STANDARD TABLE OF ty_suggestion WITH DEFAULT KEY.
 
     DATA mt_lock_objects TYPE ty_suggestions.
     DATA mt_users        TYPE ty_suggestions.
@@ -63,7 +63,7 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
     me->mo_client = client.
 
-    IF client->check_on_init( ).
+    IF client->check_on_init( ) IS NOT INITIAL.
       mv_client = sy-mandt.
       " the suggestions list users, clients and lock tables - only for whoever
       " may display lock entries at all
@@ -75,23 +75,23 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
     ENDIF.
 
     " a restored draft (bookmark, browser Back/Forward) - draw the screen again
-    IF client->check_on_navigated( ).
+    IF client->check_on_navigated( ) IS NOT INITIAL.
       view_display( ).
       RETURN.
     ENDIF.
 
-    IF client->check_on_event( `BUTTON_SEARCH` ).
+    IF client->check_on_event( `BUTTON_SEARCH` ) IS NOT INITIAL.
       on_search( ).
       client->view_model_update( ).
       RETURN.
     ENDIF.
 
-    IF client->check_on_event( `BUTTON_DELETE` ).
+    IF client->check_on_event( `BUTTON_DELETE` ) IS NOT INITIAL.
       show_delete_confirm( ).
       RETURN.
     ENDIF.
 
-    IF client->check_on_event( `CONFIRM_DELETE` ).
+    IF client->check_on_event( `CONFIRM_DELETE` ) IS NOT INITIAL.
       client->popup_destroy( ).
       on_delete( ).
       client->view_model_update( ).
@@ -103,6 +103,7 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
   METHOD show_delete_confirm.
 
     DATA lv_count TYPE i.
+    DATA popup TYPE REF TO z2ui5_cl_ui5_view_builder.
     LOOP AT mt_locks TRANSPORTING NO FIELDS WHERE selkz = abap_true.
       lv_count = lv_count + 1.
     ENDLOOP.
@@ -112,7 +113,8 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA(popup) = z2ui5_cl_ui5_view_builder=>factory(
+
+    popup = z2ui5_cl_ui5_view_builder=>factory(
                       )->ele( n = `FragmentDefinition` ns = `core`
                       )->a( n = `xmlns` v = `sap.m`
                       )->a( n = `xmlns:core` v = `sap.ui.core` ).
@@ -144,6 +146,9 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
 
   METHOD on_search.
+        DATA lt_locks TYPE z2ui5_cl_lock_context=>ty_t_lock.
+    DATA ls_lock LIKE LINE OF lt_locks.
+    DATA ls_row LIKE LINE OF mt_locks.
 
     IF check_auth_display( ) = abap_false.
       mo_client->message_box_display(
@@ -153,7 +158,8 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
     ENDIF.
 
     TRY.
-        DATA(lt_locks) = z2ui5_cl_lock_context=>lock_read(
+
+        lt_locks = z2ui5_cl_lock_context=>lock_read(
           lock_object = mv_lock_object
           user        = mv_user
           client      = mv_client ).
@@ -167,8 +173,8 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
     " explicit loops, not VALUE #( FOR ... ): the 702 downport cannot rewrite
     " the LOOP ... INTO DATA( ) it turns a FOR into
-    DATA ls_lock LIKE LINE OF lt_locks.
-    DATA ls_row  LIKE LINE OF mt_locks.
+
+
     CLEAR mt_locks.
     LOOP AT lt_locks INTO ls_lock.
       CLEAR ls_row.
@@ -190,6 +196,10 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
 
   METHOD on_delete.
+    DATA lt_lock TYPE z2ui5_cl_lock_context=>ty_t_lock.
+    DATA lv_count TYPE i.
+    DATA ls_lock LIKE LINE OF mt_locks.
+      DATA temp1 TYPE z2ui5_cl_lock_context=>ty_s_lock.
 
     IF check_auth_admin( ) = abap_false.
       mo_client->message_box_display(
@@ -198,19 +208,21 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA lt_lock  TYPE z2ui5_cl_lock_context=>ty_t_lock.
-    DATA lv_count TYPE i.
 
-    LOOP AT mt_locks INTO DATA(ls_lock) WHERE selkz = abap_true.
-      APPEND VALUE z2ui5_cl_lock_context=>ty_s_lock(
-        lock_object = ls_lock-gname
-        argument    = ls_lock-garg
-        mode        = ls_lock-gmode
-        user        = ls_lock-guname
-        client      = ls_lock-gclient
-        owner       = ls_lock-gusr
-        owner_vb    = ls_lock-gusrvb
-      ) TO lt_lock.
+
+
+
+    LOOP AT mt_locks INTO ls_lock WHERE selkz = abap_true.
+
+      CLEAR temp1.
+      temp1-lock_object = ls_lock-gname.
+      temp1-argument = ls_lock-garg.
+      temp1-mode = ls_lock-gmode.
+      temp1-user = ls_lock-guname.
+      temp1-client = ls_lock-gclient.
+      temp1-owner = ls_lock-gusr.
+      temp1-owner_vb = ls_lock-gusrvb.
+      APPEND temp1 TO lt_lock.
       lv_count = lv_count + 1.
     ENDLOOP.
 
@@ -271,20 +283,30 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
         viewname TYPE dd25l-viewname,
       END OF ty_lock_table.
     DATA lt_lock_tables TYPE STANDARD TABLE OF ty_lock_table WITH DEFAULT KEY.
+    DATA ls_suggestion TYPE ty_suggestion.
+    DATA ls_lock_table LIKE LINE OF lt_lock_tables.
+TYPES BEGIN OF ty_client.
+TYPES mandt TYPE t000-mandt.
+TYPES mtext TYPE t000-mtext.
+TYPES END OF ty_client.
+    DATA lt_clients TYPE STANDARD TABLE OF ty_client WITH DEFAULT KEY.
+    DATA ls_client TYPE ty_client.
+    DATA lt_users TYPE STANDARD TABLE OF usr02-bname WITH DEFAULT KEY.
+    DATA lv_user TYPE usr02-bname.
     " ORDER BY keeps UP TO downportable: without it the 702 downport leaves
     " the statement half rewritten
-    SELECT DISTINCT s~tabname, l~viewname
+    SELECT DISTINCT s~tabname l~viewname
       FROM dd26s AS s
-      INNER JOIN dd25l AS l ON l~viewname = s~viewname
+      INNER JOIN dd25l AS l ON l~viewname = s~viewname INTO TABLE lt_lock_tables
       WHERE l~aggtype = 'E'
-      ORDER BY s~tabname, l~viewname
-      INTO TABLE @lt_lock_tables
+      ORDER BY s~tabname l~viewname
+
       UP TO 500 ROWS.
 
     " explicit loops, not VALUE #( FOR ... ): the 702 downport cannot rewrite
     " the LOOP ... INTO DATA( ) it turns a FOR into
-    DATA ls_suggestion  TYPE ty_suggestion.
-    DATA ls_lock_table  LIKE LINE OF lt_lock_tables.
+
+
     CLEAR mt_lock_objects.
     LOOP AT lt_lock_tables INTO ls_lock_table.
       ls_suggestion-value = ls_lock_table-tabname.
@@ -293,16 +315,12 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
     ENDLOOP.
 
     " SAP clients from T000
-    TYPES:
-      BEGIN OF ty_client,
-        mandt TYPE t000-mandt,
-        mtext TYPE t000-mtext,
-      END OF ty_client.
-    DATA lt_clients TYPE STANDARD TABLE OF ty_client WITH DEFAULT KEY.
-    DATA ls_client  TYPE ty_client.
-    SELECT mandt, mtext
+
+
+
+    SELECT mandt mtext
       FROM t000
-      INTO TABLE @lt_clients.
+      INTO TABLE lt_clients.
 
     CLEAR mt_clients.
     LOOP AT lt_clients INTO ls_client.
@@ -312,11 +330,11 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
     ENDLOOP.
 
     " Active SAP users (limited set)
-    DATA lt_users TYPE STANDARD TABLE OF usr02-bname WITH DEFAULT KEY.
-    DATA lv_user  TYPE usr02-bname.
+
+
     SELECT bname
       FROM usr02
-      INTO TABLE @lt_users
+      INTO TABLE lt_users
       UP TO 200 ROWS.
 
     CLEAR mt_users.
@@ -331,7 +349,11 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
   METHOD view_display.
 
-    DATA(view) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA view TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA page TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA form TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA tab TYPE REF TO z2ui5_cl_ui5_view_builder.
+    view = z2ui5_cl_ui5_view_builder=>factory(
                      )->ele( n = `View` ns = `mvc`
                      )->a( n = `xmlns` v = `sap.m`
                      )->a( n = `xmlns:mvc` v = `sap.ui.core.mvc`
@@ -340,14 +362,16 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
                      )->a( n = `displayBlock` v = `true`
                      )->a( n = `height` v = `100%` ).
 
-    DATA(page) = view->ele( `Shell`
+
+    page = view->ele( `Shell`
                      )->ele( `Page`
                      )->a( n = `title` v = `Lock Manager (SM12)`
                      )->a( n = `navButtonPress` v = mo_client->_event_nav_app_leave( )
                      )->a( n = `showNavButton` b = mo_client->check_app_prev_stack( ) ).
 
     " ----- Filter form -----
-    DATA(form) = page->ele( n = `SimpleForm` ns = `form`
+
+    form = page->ele( n = `SimpleForm` ns = `form`
                      )->a( n = `title` v = `Filter`
                      )->a( n = `editable` b = abap_true
                      )->ele( n = `content` ns = `form` ).
@@ -397,7 +421,8 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
         )->a( n = `type` v = `Emphasized` ).
 
     " ----- Results table with multi-select -----
-    DATA(tab) = page->ele( `Table`
+
+    tab = page->ele( `Table`
                     )->a( n = `items` v = |\{path: '{ mo_client->_bind_edit( val = mt_locks path = abap_true ) }', templateShareable: false\}|
                     )->a( n = `mode` v = `MultiSelect`
                     )->ele( `headerToolbar`
