@@ -4,7 +4,9 @@ CLASS z2ui5_cl_lock_sample DEFINITION PUBLIC CREATE PUBLIC.
     INTERFACES z2ui5_if_app.
 
     " Input
-    DATA mv_vbeln        TYPE vbak-vbeln.
+    " c LENGTH 10, not vbak-vbeln: the sample has to activate on systems
+    " without SD as well - the handler types the value for the lock module
+    DATA mv_vbeln        TYPE c LENGTH 10.
     DATA mv_mode         TYPE char1 VALUE 'E'.
     DATA mv_lock         TYPE abap_bool VALUE abap_true.
     DATA mv_promote      TYPE abap_bool.
