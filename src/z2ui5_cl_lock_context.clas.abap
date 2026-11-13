@@ -302,6 +302,7 @@ CLASS z2ui5_cl_lock_context IMPLEMENTATION.
     DATA lv_uuid      TYPE c LENGTH 32.
     DATA lv_classname TYPE string.
     DATA lv_fm        TYPE string.
+        DATA lx_uuid TYPE REF TO cx_root.
 
     TRY.
 
@@ -323,7 +324,8 @@ CLASS z2ui5_cl_lock_context IMPLEMENTATION.
 
         result = lv_uuid.
 
-      CATCH cx_root INTO DATA(lx_uuid).
+
+      CATCH cx_root INTO lx_uuid.
         " both UUID mechanisms failed - raise the framework exception so the
         " consumer's single top-level catch can turn it into a handled error.
         " ASSERT would raise the uncatchable ASSERTION_FAILED and bypass that
@@ -348,7 +350,7 @@ CLASS z2ui5_cl_lock_context IMPLEMENTATION.
 
   METHOD context_get_sy.
 
-    result = CORRESPONDING #( sy ).
+    MOVE-CORRESPONDING sy TO result.
 
   ENDMETHOD.
 
@@ -367,6 +369,8 @@ CLASS z2ui5_cl_lock_context IMPLEMENTATION.
     DATA ls_exception  TYPE abap_func_excpbind.
     DATA lv_function   TYPE string.
     DATA ls_lock       TYPE ty_s_lock.
+        DATA lx_error TYPE REF TO z2ui5_cx_lock_error.
+        DATA lx_root TYPE REF TO cx_root.
 
     TRY.
         CREATE DATA lr_enq TYPE STANDARD TABLE OF (`SEQG3`).
@@ -451,9 +455,11 @@ CLASS z2ui5_cl_lock_context IMPLEMENTATION.
           INSERT ls_lock INTO TABLE result.
         ENDLOOP.
 
-      CATCH z2ui5_cx_lock_error INTO DATA(lx_error).
+
+      CATCH z2ui5_cx_lock_error INTO lx_error.
         RAISE EXCEPTION lx_error.
-      CATCH cx_root INTO DATA(lx_root).
+
+      CATCH cx_root INTO lx_root.
         RAISE EXCEPTION TYPE z2ui5_cx_lock_error EXPORTING val = lx_root.
     ENDTRY.
 
@@ -474,6 +480,7 @@ CLASS z2ui5_cl_lock_context IMPLEMENTATION.
     DATA lt_exception  TYPE abap_func_excpbind_tab.
     DATA ls_exception  TYPE abap_func_excpbind.
     DATA lv_function   TYPE string.
+        DATA temp1 TYPE xsdboolean.
 
     TRY.
         CREATE DATA lr_enq TYPE STANDARD TABLE OF (`SEQG3`).
@@ -543,7 +550,9 @@ CLASS z2ui5_cl_lock_context IMPLEMENTATION.
           PARAMETER-TABLE lt_param
           EXCEPTION-TABLE lt_exception.
 
-        result = xsdbool( sy-subrc = 0 AND lv_subrc = 0 ).
+
+        temp1 = boolc( sy-subrc = 0 AND lv_subrc = 0 ).
+        result = temp1.
 
       CATCH cx_root.
         result = abap_false.

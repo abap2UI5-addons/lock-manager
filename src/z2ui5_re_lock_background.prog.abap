@@ -45,7 +45,8 @@ START-OF-SELECTION.
           |{ sy-uzeit TIME = USER } by { sy-uname }.|.
 
   " loops until no request is pending and no lock is held
-  DATA(gv_log) = z2ui5_cl_lock_manager=>run_handler(
+  DATA gv_log TYPE string.
+  gv_log = z2ui5_cl_lock_manager=>run_handler(
     iv_wait_seconds    = p_wait
     iv_release_minutes = p_time ).
 
