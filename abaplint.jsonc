@@ -25,7 +25,7 @@
     // v750, the same floor as the core. read_lock_requests( ) filters with
     // ranges, not with a host expression such as @iv_status IS INITIAL in the
     // WHERE clause, which needs 7.54. Older releases install the 702 branch
-    // (publish-702).
+    // (ci-702).
     "version": "v750",
     // ^Z (not "."): this addon reads on-prem DDIC types and calls the kernel
     // ENQUEUE function modules, which the API set does not ship - with "."

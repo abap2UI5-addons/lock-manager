@@ -5,9 +5,10 @@
 [![abap2UI5](https://img.shields.io/badge/requires-abap2UI5-blue)](https://github.com/abap2UI5/abap2UI5)
 [![License](https://img.shields.io/github/license/abap2UI5-addons/lock-manager)](LICENSE)
 <br>
-[![ABAP Standard](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/lock-manager/abap-standard.yaml?branch=main&label=ABAP%20Standard)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/abap-standard.yaml)
-[![check-abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fbadges%2Fcheck-abap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/check-abap2ui5.yaml)
-[![abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fbadges%2Fabap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/check-abap2ui5.yaml)
+[![CI](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/lock-manager/ci.yaml?branch=main&label=CI)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/ci.yaml)
+[![ABAP 7.02](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/lock-manager/ci-702.yaml?branch=main&label=ABAP%207.02)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/ci-702.yaml)
+[![check-abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fbadges%2Fcheck-abap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/ci.yaml)
+[![abap2UI5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fabap2UI5-addons%2Flock-manager%2Fbadges%2Fabap2ui5.json)](https://github.com/abap2UI5-addons/lock-manager/actions/workflows/ci.yaml)
 
 **Hold an SAP lock across the HTTP roundtrips of a stateless abap2UI5 app.**
 A reusable, event-driven lock manager for [abap2UI5](https://github.com/abap2UI5/abap2UI5) apps — and any stateless ABAP web app.
