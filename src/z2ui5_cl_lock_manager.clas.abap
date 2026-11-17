@@ -238,33 +238,46 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
   METHOD request.
 
-    DATA(lv_process) = CONV char1( to_upper( iv_process ) ).
-    DATA(lv_mode) = CONV char1( to_upper( iv_mode ) ).
+    DATA temp1 TYPE char1.
+    DATA lv_process LIKE temp1.
+    DATA temp2 TYPE char1.
+    DATA lv_mode LIKE temp2.
+    DATA temp3 TYPE string.
+    DATA lv_error LIKE temp3.
+      DATA lv_locker TYPE sy-uname.
+    DATA lv_req_id TYPE guid_32.
+    DATA temp4 TYPE xsdboolean.
+    temp1 = to_upper( iv_process ).
+
+    lv_process = temp1.
+
+    temp2 = to_upper( iv_mode ).
+
+    lv_mode = temp2.
     IF lv_mode IS INITIAL.
       lv_mode = c_mode_exclusive.
     ENDIF.
 
-    DATA(lv_error) = COND string(
-      WHEN lv_process <> c_process_enqueue
-       AND lv_process <> c_process_dequeue
-       AND lv_process <> c_process_promote
-      THEN `iv_process must be E (enqueue), D (dequeue) or R (promote)`
-      WHEN iv_obj_type IS INITIAL OR iv_obj_key IS INITIAL
-      THEN `iv_obj_type and iv_obj_key are mandatory`
-      WHEN lv_process = c_process_enqueue AND iv_function IS INITIAL
-      THEN `iv_function is mandatory for an enqueue`
-      WHEN lv_process = c_process_enqueue
-       AND lv_mode <> c_mode_exclusive
-       AND lv_mode <> c_mode_shared
-       AND lv_mode <> c_mode_optimistic
-      THEN `iv_mode must be E (exclusive), S (shared) or O (optimistic)` ).
+
+    IF lv_process <> c_process_enqueue AND lv_process <> c_process_dequeue AND lv_process <> c_process_promote.
+      temp3 = `iv_process must be E (enqueue), D (dequeue) or R (promote)`.
+    ELSEIF iv_obj_type IS INITIAL OR iv_obj_key IS INITIAL.
+      temp3 = `iv_obj_type and iv_obj_key are mandatory`.
+    ELSEIF lv_process = c_process_enqueue AND iv_function IS INITIAL.
+      temp3 = `iv_function is mandatory for an enqueue`.
+    ELSEIF lv_process = c_process_enqueue AND lv_mode <> c_mode_exclusive AND lv_mode <> c_mode_shared AND lv_mode <> c_mode_optimistic.
+      temp3 = `iv_mode must be E (exclusive), S (shared) or O (optimistic)`.
+    ELSE.
+      CLEAR temp3.
+    ENDIF.
+
+    lv_error = temp3.
 
     IF lv_error IS NOT INITIAL.
-      rs_result = VALUE #(
-        msg_type  = 'Error'
-        msg_title = 'Invalid request'
-        msg_desc  = lv_error
-      ).
+      CLEAR rs_result.
+      rs_result-msg_type = 'Error'.
+      rs_result-msg_title = 'Invalid request'.
+      rs_result-msg_desc = lv_error.
       RETURN.
     ENDIF.
 
@@ -272,23 +285,23 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " can pass it at the same moment, and the handler, which works through the
     " queue one request at a time, is the one that arbitrates.
     IF lv_process = c_process_enqueue.
-      DATA(lv_locker) = find_conflict(
+
+      lv_locker = find_conflict(
         iv_obj_type = iv_obj_type
         iv_obj_key  = iv_obj_key
         iv_user     = sy-uname
         iv_mode     = lv_mode
       ).
       IF lv_locker IS NOT INITIAL.
-        rs_result = VALUE #(
-          msg_type  = 'Error'
-          msg_title = 'Object locked'
-          msg_desc  = |Locked by { lv_locker }|
-        ).
+        CLEAR rs_result.
+        rs_result-msg_type = 'Error'.
+        rs_result-msg_title = 'Object locked'.
+        rs_result-msg_desc = |Locked by { lv_locker }|.
         RETURN.
       ENDIF.
     ENDIF.
 
-    DATA lv_req_id TYPE guid_32.
+
     lv_req_id = write_request(
       iv_function = iv_function
       iv_process  = lv_process
@@ -305,16 +318,20 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       raise_event( iv_client_dependent ).
     ENDIF.
 
+
+    temp4 = boolc( lv_process = c_process_enqueue ).
     rs_result = wait_for_result(
       iv_req_id   = lv_req_id
       iv_timeout  = iv_timeout
-      iv_withdraw = xsdbool( lv_process = c_process_enqueue )
+      iv_withdraw = temp4
     ).
 
   ENDMETHOD.
 
 
   METHOD run_handler.
+    DATA temp4 TYPE i.
+    DATA lv_wait LIKE temp4.
 
     IF guard_lock( ) <> 0.
       rv_log = `Another lock handler is already running in this client - nothing to do`.
@@ -325,7 +342,14 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " the registry still calls ACTIVE is taken again before anything else.
     recover_locks( ).
 
-    DATA(lv_wait) = COND i( WHEN iv_wait_seconds > 0 THEN iv_wait_seconds ELSE 1 ).
+
+    IF iv_wait_seconds > 0.
+      temp4 = iv_wait_seconds.
+    ELSE.
+      temp4 = 1.
+    ENDIF.
+
+    lv_wait = temp4.
 
     DO.
       process_pending_requests( ).
@@ -358,12 +382,16 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   METHOD process_pending_requests.
 
     " first come, first served: the queue order is the arbitration
-    SELECT * FROM z2ui5_t_05
-      WHERE status = @c_status_pending
+    TYPES temp1 TYPE STANDARD TABLE OF z2ui5_t_05 WITH DEFAULT KEY.
+DATA lt_requests TYPE temp1.
+    DATA ls_req LIKE LINE OF lt_requests.
+    SELECT * FROM z2ui5_t_05 INTO TABLE lt_requests
+      WHERE status = c_status_pending
       ORDER BY created_at ASCENDING
-      INTO TABLE @DATA(lt_requests).
+      .
 
-    LOOP AT lt_requests INTO DATA(ls_req).
+
+    LOOP AT lt_requests INTO ls_req.
 
       CASE ls_req-process.
         WHEN c_process_enqueue.
@@ -392,23 +420,33 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
     DATA lv_msg TYPE string.
 
-    SELECT * FROM z2ui5_t_05
-      WHERE obj_type = @is_req-obj_type
-        AND obj_key  = @is_req-obj_key
-        AND status   = @c_status_active
-      INTO TABLE @DATA(lt_active).
+    TYPES temp2 TYPE STANDARD TABLE OF z2ui5_t_05 WITH DEFAULT KEY.
+DATA lt_active TYPE temp2.
+    DATA temp7 LIKE sy-subrc.
+    DATA ls_held LIKE LINE OF lt_active.
+    DATA lv_kernel TYPE abap_bool.
+    DATA temp1 LIKE sy-subrc.
+    DATA temp5 TYPE xsdboolean.
+    SELECT * FROM z2ui5_t_05 INTO TABLE lt_active
+      WHERE obj_type = is_req-obj_type
+        AND obj_key  = is_req-obj_key
+        AND status   = c_status_active
+      .
 
     " the registry keeps one lock per user, object and mode - asking again is
     " not an error, and it does not stack up a second lock either
-    IF line_exists( lt_active[ created_by = is_req-created_by
-                               lock_mode  = is_req-lock_mode ] ).
+
+    READ TABLE lt_active WITH KEY created_by = is_req-created_by lock_mode = is_req-lock_mode TRANSPORTING NO FIELDS.
+    temp7 = sy-subrc.
+    IF temp7 = 0.
       finish_request( is_req    = is_req
                       iv_status = c_status_done
                       iv_msg    = `Already locked by you` ).
       RETURN.
     ENDIF.
 
-    LOOP AT lt_active INTO DATA(ls_held) WHERE created_by <> is_req-created_by.
+
+    LOOP AT lt_active INTO ls_held WHERE created_by <> is_req-created_by.
       IF is_compatible( iv_held      = ls_held-lock_mode
                         iv_requested = is_req-lock_mode ) = abap_false.
         finish_request( is_req    = is_req
@@ -421,7 +459,13 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " The kernel lock is taken once per object and mode. The handler is its
     " only owner, so further holders of a shared or optimistic lock only
     " join the registry - the kernel would merely count them up.
-    DATA(lv_kernel) = xsdbool( NOT line_exists( lt_active[ lock_mode = is_req-lock_mode ] ) ).
+
+
+    READ TABLE lt_active WITH KEY lock_mode = is_req-lock_mode TRANSPORTING NO FIELDS.
+    temp1 = sy-subrc.
+
+    temp5 = boolc( NOT temp1 = 0 ).
+    lv_kernel = temp5.
 
     " AND stops at a false operand, so the kernel is asked only if needed
     IF     lv_kernel = abap_true
@@ -454,12 +498,15 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
   METHOD process_dequeue.
 
-    SELECT * FROM z2ui5_t_05
-      WHERE obj_type   = @is_req-obj_type
-        AND obj_key    = @is_req-obj_key
-        AND created_by = @is_req-created_by
-        AND status     = @c_status_active
-      INTO TABLE @DATA(lt_own).
+    TYPES temp3 TYPE STANDARD TABLE OF z2ui5_t_05 WITH DEFAULT KEY.
+DATA lt_own TYPE temp3.
+    DATA ls_own LIKE LINE OF lt_own.
+    SELECT * FROM z2ui5_t_05 INTO TABLE lt_own
+      WHERE obj_type   = is_req-obj_type
+        AND obj_key    = is_req-obj_key
+        AND created_by = is_req-created_by
+        AND status     = c_status_active
+      .
 
     IF lt_own IS INITIAL.
       finish_request( is_req    = is_req
@@ -468,7 +515,8 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    LOOP AT lt_own INTO DATA(ls_own).
+
+    LOOP AT lt_own INTO ls_own.
       release_holder( is_holder = ls_own
                       iv_status = c_status_released
                       iv_msg    = |Released by { is_req-created_by }| ).
@@ -485,45 +533,65 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
     DATA lv_msg TYPE string.
 
-    SELECT * FROM z2ui5_t_05
-      WHERE obj_type = @is_req-obj_type
-        AND obj_key  = @is_req-obj_key
-        AND status   = @c_status_active
-      INTO TABLE @DATA(lt_active).
+    TYPES temp4 TYPE STANDARD TABLE OF z2ui5_t_05 WITH DEFAULT KEY.
+DATA lt_active TYPE temp4.
+    DATA temp10 LIKE sy-subrc.
+    DATA temp11 LIKE sy-subrc.
+    DATA ls_own TYPE z2ui5_t_05.
+      DATA lv_lost TYPE z2ui5_t_05-msg_text.
+      DATA temp12 TYPE string.
+    DATA ls_held LIKE LINE OF lt_active.
+    SELECT * FROM z2ui5_t_05 INTO TABLE lt_active
+      WHERE obj_type = is_req-obj_type
+        AND obj_key  = is_req-obj_key
+        AND status   = c_status_active
+      .
 
     " a repeated promote after a timeout finds the work already done
-    IF line_exists( lt_active[ created_by = is_req-created_by
-                               lock_mode  = c_mode_exclusive ] ).
+
+
+    temp11 = sy-subrc.
+    READ TABLE lt_active WITH KEY created_by = is_req-created_by lock_mode = c_mode_exclusive TRANSPORTING NO FIELDS.
+    temp10 = sy-subrc.
+    sy-subrc = temp11.
+    IF temp10 = 0.
       finish_request( is_req    = is_req
                       iv_status = c_status_done
                       iv_msg    = `Already exclusive` ).
       RETURN.
     ENDIF.
 
-    READ TABLE lt_active INTO DATA(ls_own)
+
+    READ TABLE lt_active INTO ls_own
       WITH KEY created_by = is_req-created_by
                lock_mode  = c_mode_optimistic.
     IF sy-subrc <> 0.
       " the optimistic lock may have been invalidated by someone faster
-      SELECT msg_text FROM z2ui5_t_05
-        WHERE obj_type   = @is_req-obj_type
-          AND obj_key    = @is_req-obj_key
-          AND created_by = @is_req-created_by
-          AND status     = @c_status_lost
+
+      SELECT msg_text FROM z2ui5_t_05 INTO lv_lost
+        WHERE obj_type   = is_req-obj_type
+          AND obj_key    = is_req-obj_key
+          AND created_by = is_req-created_by
+          AND status     = c_status_lost
         ORDER BY created_at DESCENDING
-        INTO @DATA(lv_lost)
+
         UP TO 1 ROWS.
       ENDSELECT.
+
+      IF lv_lost IS NOT INITIAL.
+        temp12 = |Optimistic lock lost: { lv_lost }|.
+      ELSE.
+        temp12 = `No optimistic lock held - enqueue in mode O first`.
+      ENDIF.
       finish_request( is_req    = is_req
                       iv_status = c_status_error
-                      iv_msg    = COND string( WHEN lv_lost IS NOT INITIAL
-                                               THEN |Optimistic lock lost: { lv_lost }|
-                                               ELSE `No optimistic lock held - enqueue in mode O first` ) ).
+                      iv_msg    = temp12 ).
       RETURN.
     ENDIF.
 
     " other optimistic holders do not block a promotion - they lose to it
-    LOOP AT lt_active INTO DATA(ls_held)
+
+    LOOP AT lt_active INTO ls_held
          WHERE created_by <> is_req-created_by
            AND lock_mode  <> c_mode_optimistic.
       finish_request( is_req    = is_req
@@ -545,9 +613,9 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    UPDATE z2ui5_t_05 SET lock_mode = @c_mode_exclusive,
+    UPDATE z2ui5_t_05 SET lock_mode = c_mode_exclusive,
                           msg_text  = 'Promoted to exclusive'
-      WHERE req_id = @ls_own-req_id.
+      WHERE req_id = ls_own-req_id.
 
     " the kernel deletes the optimistic locks of other owners on promotion;
     " here all of them belong to the handler, so the registry does it
@@ -555,9 +623,9 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     LOOP AT lt_active INTO ls_held
          WHERE created_by <> is_req-created_by
            AND lock_mode  =  c_mode_optimistic.
-      UPDATE z2ui5_t_05 SET status   = @c_status_lost,
-                            msg_text = @lv_msg
-        WHERE req_id = @ls_held-req_id.
+      UPDATE z2ui5_t_05 SET status   = c_status_lost,
+                            msg_text = lv_msg
+        WHERE req_id = ls_held-req_id.
     ENDLOOP.
 
     finish_request( is_req    = is_req
@@ -570,16 +638,19 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   METHOD finish_request.
 
     DATA lv_msg TYPE char200.
+    DATA temp6 TYPE xsdboolean.
     lv_msg = iv_msg.
 
     " only a request that is still pending - the requester may have
     " withdrawn it after its timeout
-    UPDATE z2ui5_t_05 SET status   = @iv_status,
-                          msg_text = @lv_msg
-      WHERE req_id = @is_req-req_id
-        AND status = @c_status_pending.
+    UPDATE z2ui5_t_05 SET status   = iv_status,
+                          msg_text = lv_msg
+      WHERE req_id = is_req-req_id
+        AND status = c_status_pending.
 
-    rv_updated = xsdbool( sy-dbcnt = 1 ).
+
+    temp6 = boolc( sy-dbcnt = 1 ).
+    rv_updated = temp6.
 
   ENDMETHOD.
 
@@ -587,16 +658,26 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   METHOD release_holder.
 
     DATA lv_msg TYPE char200.
+    DATA lv_shared TYPE abap_bool.
+    DATA temp2 TYPE z2ui5_t_05-obj_type.
+      DATA lv_optimistic TYPE abap_bool.
+      DATA temp3 TYPE z2ui5_t_05-obj_type.
     lv_msg = iv_msg.
 
     " the kernel lock goes with the last holder of its object and mode
-    SELECT SINGLE @abap_true FROM z2ui5_t_05
-      WHERE obj_type  = @is_holder-obj_type
-        AND obj_key   = @is_holder-obj_key
-        AND lock_mode = @is_holder-lock_mode
-        AND status    = @c_status_active
-        AND req_id   <> @is_holder-req_id
-      INTO @DATA(lv_shared). "#EC CI_NOORDER
+
+
+    SELECT SINGLE obj_type FROM z2ui5_t_05 INTO temp2
+      WHERE obj_type  = is_holder-obj_type
+        AND obj_key   = is_holder-obj_key
+        AND lock_mode = is_holder-lock_mode
+        AND status    = c_status_active
+        AND req_id   <> is_holder-req_id
+      .
+CLEAR lv_shared.
+IF sy-subrc = 0.
+  lv_shared = abap_true.
+ENDIF. "#EC CI_NOORDER
 
     IF lv_shared = abap_false.
       call_lock_function( iv_function = to_dequeue( is_holder-function )
@@ -609,12 +690,18 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " kept of the optimistic part must not outlive it - dequeuing a lock that
     " does not exist is a no-op.
     IF is_holder-lock_mode = c_mode_exclusive.
-      SELECT SINGLE @abap_true FROM z2ui5_t_05
-        WHERE obj_type  = @is_holder-obj_type
-          AND obj_key   = @is_holder-obj_key
-          AND lock_mode = @c_mode_optimistic
-          AND status    = @c_status_active
-        INTO @DATA(lv_optimistic). "#EC CI_NOORDER
+
+
+      SELECT SINGLE obj_type FROM z2ui5_t_05 INTO temp3
+        WHERE obj_type  = is_holder-obj_type
+          AND obj_key   = is_holder-obj_key
+          AND lock_mode = c_mode_optimistic
+          AND status    = c_status_active
+        .
+CLEAR lv_optimistic.
+IF sy-subrc = 0.
+  lv_optimistic = abap_true.
+ENDIF. "#EC CI_NOORDER
       IF lv_optimistic = abap_false.
         call_lock_function( iv_function = to_dequeue( is_holder-function )
                             iv_req_id   = is_holder-req_id
@@ -623,30 +710,37 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
-    UPDATE z2ui5_t_05 SET status   = @iv_status,
-                          msg_text = @lv_msg
-      WHERE req_id = @is_holder-req_id.
+    UPDATE z2ui5_t_05 SET status   = iv_status,
+                          msg_text = lv_msg
+      WHERE req_id = is_holder-req_id.
 
   ENDMETHOD.
 
 
   METHOD recover_locks.
 
-    DATA lt_taken TYPE STANDARD TABLE OF z2ui5_t_05 WITH DEFAULT KEY.
+    TYPES temp5 TYPE STANDARD TABLE OF z2ui5_t_05 WITH DEFAULT KEY.
+DATA lt_taken TYPE temp5.
     DATA lv_msg   TYPE string.
     DATA lv_text  TYPE char200.
 
-    SELECT * FROM z2ui5_t_05
-      WHERE status = @c_status_active
+    TYPES temp6 TYPE STANDARD TABLE OF z2ui5_t_05 WITH DEFAULT KEY.
+DATA lt_active TYPE temp6.
+    DATA ls_row LIKE LINE OF lt_active.
+      DATA temp14 LIKE sy-subrc.
+    SELECT * FROM z2ui5_t_05 INTO TABLE lt_active
+      WHERE status = c_status_active
       ORDER BY created_at ASCENDING
-      INTO TABLE @DATA(lt_active).
+      .
 
-    LOOP AT lt_active INTO DATA(ls_row).
+
+    LOOP AT lt_active INTO ls_row.
 
       " one kernel lock per object and mode, as in process_enqueue
-      IF line_exists( lt_taken[ obj_type  = ls_row-obj_type
-                                obj_key   = ls_row-obj_key
-                                lock_mode = ls_row-lock_mode ] ).
+
+      READ TABLE lt_taken WITH KEY obj_type = ls_row-obj_type obj_key = ls_row-obj_key lock_mode = ls_row-lock_mode TRANSPORTING NO FIELDS.
+      temp14 = sy-subrc.
+      IF temp14 = 0.
         CONTINUE.
       ENDIF.
       APPEND ls_row TO lt_taken.
@@ -658,12 +752,12 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
                              IMPORTING ev_msg      = lv_msg ) = abap_false.
         " someone took the object while no handler was running
         lv_text = |Lost while no handler ran - { lv_msg }|.
-        UPDATE z2ui5_t_05 SET status   = @c_status_lost,
-                              msg_text = @lv_text
-          WHERE obj_type  = @ls_row-obj_type
-            AND obj_key   = @ls_row-obj_key
-            AND lock_mode = @ls_row-lock_mode
-            AND status    = @c_status_active.
+        UPDATE z2ui5_t_05 SET status   = c_status_lost,
+                              msg_text = lv_text
+          WHERE obj_type  = ls_row-obj_type
+            AND obj_key   = ls_row-obj_key
+            AND lock_mode = ls_row-lock_mode
+            AND status    = c_status_active.
       ENDIF.
 
     ENDLOOP.
@@ -676,18 +770,26 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   METHOD auto_release_locks.
 
     DATA lv_now TYPE timestampl.
+    DATA lv_threshold TYPE tzntstmpl.
+    TYPES temp7 TYPE STANDARD TABLE OF z2ui5_t_05 WITH DEFAULT KEY.
+DATA lt_old TYPE temp7.
+    DATA ls_old LIKE LINE OF lt_old.
     GET TIME STAMP FIELD lv_now.
-    DATA(lv_threshold) = cl_abap_tstmp=>subtractsecs(
+
+    lv_threshold = cl_abap_tstmp=>subtractsecs(
       tstmp = lv_now
       secs  = iv_minutes * 60
     ).
 
-    SELECT * FROM z2ui5_t_05
-      WHERE status     = @c_status_active
-        AND created_at < @lv_threshold
-      INTO TABLE @DATA(lt_old).
 
-    LOOP AT lt_old INTO DATA(ls_old).
+
+    SELECT * FROM z2ui5_t_05 INTO TABLE lt_old
+      WHERE status     = c_status_active
+        AND created_at < lv_threshold
+      .
+
+
+    LOOP AT lt_old INTO ls_old.
       release_holder( is_holder = ls_old
                       iv_status = c_status_released
                       iv_msg    = |Auto-released after { iv_minutes } minutes| ).
@@ -705,27 +807,61 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     DATA ls_interface TYPE ty_interface.
     DATA lv_type      TYPE string.
     DATA lv_subrc     TYPE sy-subrc.
+    DATA temp16 TYPE char30.
+    DATA lv_function LIKE temp16.
+TYPES BEGIN OF temp17.
+TYPES name TYPE z2ui5_t_06-name.
+TYPES type TYPE z2ui5_t_06-type.
+TYPES value TYPE z2ui5_t_06-value.
+TYPES END OF temp17.
+    TYPES temp8 TYPE STANDARD TABLE OF temp17 WITH DEFAULT KEY.
+DATA lt_params TYPE temp8.
+        DATA ls_param LIKE LINE OF lt_params.
+          DATA temp18 TYPE char30.
+          DATA lv_name LIKE temp18.
+          DATA temp19 TYPE abap_func_parmbind.
+          DATA temp20 TYPE abap_func_parmbind.
+          DATA temp21 LIKE sy-subrc.
+          DATA temp22 LIKE sy-subrc.
+            DATA temp23 TYPE abap_func_parmbind.
+          DATA temp24 LIKE sy-subrc.
+          DATA temp25 LIKE sy-subrc.
+            DATA temp26 TYPE abap_func_parmbind.
+          DATA temp27 TYPE abap_func_excpbind.
+          DATA temp28 TYPE abap_func_excpbind.
+        DATA temp29 TYPE abap_func_excpbind.
+        DATA lx_error TYPE REF TO cx_root.
 
     CLEAR ev_msg.
-    DATA(lv_function) = CONV char30( to_upper( iv_function ) ).
+
+    temp16 = to_upper( iv_function ).
+
+    lv_function = temp16.
 
     " the parameters are always the ones the lock was taken with, so a
     " release or a recovery hits exactly the same lock argument
-    SELECT name, type, value FROM z2ui5_t_06
-      WHERE req_id = @iv_req_id
-      INTO TABLE @DATA(lt_params).
+
+
+
+    SELECT name type value FROM z2ui5_t_06 INTO TABLE lt_params
+      WHERE req_id = iv_req_id
+      .
 
     " the interface says which parameters exist and how each one is typed
-    SELECT parameter, structure FROM fupararef
-      WHERE funcname  = @lv_function
+    SELECT parameter structure FROM fupararef INTO TABLE lt_interface
+      WHERE funcname  = lv_function
         AND r3state   = 'A'
         AND paramtype = 'I'
-      INTO TABLE @lt_interface.
+      .
 
     TRY.
 
-        LOOP AT lt_params INTO DATA(ls_param).
-          DATA(lv_name) = CONV char30( to_upper( condense( ls_param-name ) ) ).
+
+        LOOP AT lt_params INTO ls_param.
+
+          temp18 = to_upper( condense( ls_param-name ) ).
+
+          lv_name = temp18.
           " a key field must reach the module in its own type - a string
           " where VBAK-VBELN is expected fails the call
           lv_type = ls_param-type.
@@ -735,42 +871,74 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
               lv_type = ls_interface-structure.
             ENDIF.
           ENDIF.
-          INSERT VALUE #( name  = lv_name
-                          kind  = abap_func_exporting
-                          value = create_value( iv_type  = lv_type
-                                                iv_value = ls_param-value ) ) INTO TABLE lt_bind.
+
+          CLEAR temp19.
+          temp19-name = lv_name.
+          temp19-kind = abap_func_exporting.
+          temp19-value = create_value( iv_type = lv_type iv_value = ls_param-value ).
+          INSERT temp19 INTO TABLE lt_bind.
         ENDLOOP.
 
         " one MODE_<table> parameter per base table of the lock object
         LOOP AT lt_interface INTO ls_interface WHERE parameter CP 'MODE_*'.
-          INSERT VALUE #( name  = ls_interface-parameter
-                          kind  = abap_func_exporting
-                          value = create_value( iv_type  = `CHAR1`
-                                                iv_value = iv_mode ) ) INTO TABLE lt_bind.
+
+          CLEAR temp20.
+          temp20-name = ls_interface-parameter.
+          temp20-kind = abap_func_exporting.
+          temp20-value = create_value( iv_type = `CHAR1` iv_value = iv_mode ).
+          INSERT temp20 INTO TABLE lt_bind.
         ENDLOOP.
 
         IF iv_enqueue = abap_true.
           " _SCOPE = 1: the lock belongs to this session alone and is not
           " handed to an update task - with the default 2 the next COMMIT
           " WORK would release it
-          IF line_exists( lt_interface[ parameter = '_SCOPE' ] ).
-            INSERT VALUE #( name  = '_SCOPE'
-                            kind  = abap_func_exporting
-                            value = create_value( iv_type  = `CHAR1`
-                                                  iv_value = '1' ) ) INTO TABLE lt_bind.
+
+
+          temp22 = sy-subrc.
+          READ TABLE lt_interface WITH KEY parameter = '_SCOPE' TRANSPORTING NO FIELDS.
+          temp21 = sy-subrc.
+          sy-subrc = temp22.
+          IF temp21 = 0.
+
+            CLEAR temp23.
+            temp23-name = '_SCOPE'.
+            temp23-kind = abap_func_exporting.
+            temp23-value = create_value( iv_type = `CHAR1` iv_value = '1' ).
+            INSERT temp23 INTO TABLE lt_bind.
           ENDIF.
           " _WAIT = X: on a collision the kernel retries for a while before
           " it gives up
-          IF iv_wait = abap_true AND line_exists( lt_interface[ parameter = '_WAIT' ] ).
-            INSERT VALUE #( name  = '_WAIT'
-                            kind  = abap_func_exporting
-                            value = create_value( iv_type  = `CHAR1`
-                                                  iv_value = abap_true ) ) INTO TABLE lt_bind.
+
+
+          temp25 = sy-subrc.
+          READ TABLE lt_interface WITH KEY parameter = '_WAIT' TRANSPORTING NO FIELDS.
+          temp24 = sy-subrc.
+          sy-subrc = temp25.
+          IF iv_wait = abap_true AND temp24 = 0.
+
+            CLEAR temp26.
+            temp26-name = '_WAIT'.
+            temp26-kind = abap_func_exporting.
+            temp26-value = create_value( iv_type = `CHAR1` iv_value = abap_true ).
+            INSERT temp26 INTO TABLE lt_bind.
           ENDIF.
-          INSERT VALUE #( name = 'FOREIGN_LOCK'   value = 1 ) INTO TABLE lt_exception.
-          INSERT VALUE #( name = 'SYSTEM_FAILURE' value = 2 ) INTO TABLE lt_exception.
+
+          CLEAR temp27.
+          temp27-name = 'FOREIGN_LOCK'.
+          temp27-value = 1.
+          INSERT temp27 INTO TABLE lt_exception.
+
+          CLEAR temp28.
+          temp28-name = 'SYSTEM_FAILURE'.
+          temp28-value = 2.
+          INSERT temp28 INTO TABLE lt_exception.
         ENDIF.
-        INSERT VALUE #( name = 'OTHERS' value = 3 ) INTO TABLE lt_exception.
+
+        CLEAR temp29.
+        temp29-name = 'OTHERS'.
+        temp29-value = 3.
+        INSERT temp29 INTO TABLE lt_exception.
 
         CALL FUNCTION lv_function
           PARAMETER-TABLE lt_bind
@@ -792,7 +960,8 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
             ENDIF.
         ENDCASE.
 
-      CATCH cx_root INTO DATA(lx_error).
+
+      CATCH cx_root INTO lx_error.
         ev_msg = |{ lv_function }: { lx_error->get_text( ) }|.
     ENDTRY.
 
@@ -832,23 +1001,31 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
     " between different owners only shared and optimistic locks coexist -
     " an optimistic lock collides like a shared one
-    rv_compatible = xsdbool(
-      ( iv_held      = c_mode_shared OR iv_held      = c_mode_optimistic ) AND
-      ( iv_requested = c_mode_shared OR iv_requested = c_mode_optimistic ) ).
+    DATA temp7 TYPE xsdboolean.
+    temp7 = boolc( ( iv_held = c_mode_shared OR iv_held = c_mode_optimistic ) AND ( iv_requested = c_mode_shared OR iv_requested = c_mode_optimistic ) ).
+    rv_compatible = temp7.
 
   ENDMETHOD.
 
 
   METHOD find_conflict.
 
-    SELECT created_by, lock_mode FROM z2ui5_t_05
-      WHERE obj_type    = @iv_obj_type
-        AND obj_key     = @iv_obj_key
-        AND status      = @c_status_active
-        AND created_by <> @iv_user
-      INTO TABLE @DATA(lt_held).
+    TYPES: BEGIN OF temp30,
+            created_by TYPE z2ui5_t_05-created_by,
+            lock_mode TYPE z2ui5_t_05-lock_mode,
+          END OF temp30.
+    TYPES temp9 TYPE STANDARD TABLE OF temp30 WITH DEFAULT KEY.
+DATA lt_held TYPE temp9.
+    DATA ls_held LIKE LINE OF lt_held.
+    SELECT created_by lock_mode FROM z2ui5_t_05 INTO TABLE lt_held
+      WHERE obj_type    = iv_obj_type
+        AND obj_key     = iv_obj_key
+        AND status      = c_status_active
+        AND created_by <> iv_user
+      .
 
-    LOOP AT lt_held INTO DATA(ls_held).
+
+    LOOP AT lt_held INTO ls_held.
       IF is_compatible( iv_held      = ls_held-lock_mode
                         iv_requested = iv_mode ) = abap_false.
         rv_locker = ls_held-created_by.
@@ -861,10 +1038,15 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
   METHOD has_open_work.
 
-    SELECT SINGLE @abap_true FROM z2ui5_t_05
-      WHERE status = @c_status_pending
-         OR status = @c_status_active
-      INTO @rv_open. "#EC CI_NOORDER
+    DATA temp31 TYPE z2ui5_t_05-status.
+    SELECT SINGLE status FROM z2ui5_t_05 INTO temp31
+      WHERE status = c_status_pending
+         OR status = c_status_active
+      .
+CLEAR rv_open.
+IF sy-subrc = 0.
+  rv_open = abap_true.
+ENDIF. "#EC CI_NOORDER
 
   ENDMETHOD.
 
@@ -939,35 +1121,41 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
 
   METHOD write_request.
+    DATA temp32 TYPE z2ui5_t_05.
+    DATA ls_req LIKE temp32.
+    DATA ls_p TYPE ty_param.
+    DATA ls_row TYPE z2ui5_t_06.
 
     CALL FUNCTION 'GUID_CREATE'
       IMPORTING
         ev_guid_32 = rv_req_id.
 
-    DATA(ls_req) = VALUE z2ui5_t_05(
-      req_id     = rv_req_id
-      obj_type   = iv_obj_type
-      obj_key    = iv_obj_key
-      function   = to_upper( iv_function )
-      process    = iv_process
-      lock_mode  = iv_mode
-      lock_wait  = iv_wait
-      created_by = sy-uname
-      status     = c_status_pending
-    ).
+
+    CLEAR temp32.
+    temp32-req_id = rv_req_id.
+    temp32-obj_type = iv_obj_type.
+    temp32-obj_key = iv_obj_key.
+    temp32-function = to_upper( iv_function ).
+    temp32-process = iv_process.
+    temp32-lock_mode = iv_mode.
+    temp32-lock_wait = iv_wait.
+    temp32-created_by = sy-uname.
+    temp32-status = c_status_pending.
+
+    ls_req = temp32.
     GET TIME STAMP FIELD ls_req-created_at.
 
-    INSERT z2ui5_t_05 FROM @ls_req.
+    INSERT z2ui5_t_05 FROM ls_req.
 
-    DATA ls_p   TYPE ty_param.
-    DATA ls_row TYPE z2ui5_t_06.
+
+
     LOOP AT it_params INTO ls_p.
       CLEAR ls_row.
       ls_row-req_id = rv_req_id.
       ls_row-name   = to_upper( ls_p-name ).
       ls_row-type   = to_upper( ls_p-type ).
       ls_row-value  = ls_p-value.
-      INSERT z2ui5_t_06 FROM @ls_row.
+      INSERT z2ui5_t_06 FROM ls_row.
     ENDLOOP.
 
     " the handler runs in another session and must see the row
@@ -978,11 +1166,15 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
   METHOD raise_event.
 
-    DATA(lv_event) = COND btceventid(
-      WHEN iv_client_dependent = abap_true
-      THEN |LOCK_HANDLER_{ sy-mandt }|
-      ELSE 'LOCK_HANDLER'
-    ).
+    DATA temp33 TYPE btceventid.
+    DATA lv_event LIKE temp33.
+    IF iv_client_dependent = abap_true.
+      temp33 = |LOCK_HANDLER_{ sy-mandt }|.
+    ELSE.
+      temp33 = 'LOCK_HANDLER'.
+    ENDIF.
+
+    lv_event = temp33.
 
     CALL FUNCTION 'BP_EVENT_RAISE'
       EXPORTING
@@ -996,21 +1188,24 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   METHOD wait_for_result.
 
     DATA ls_row TYPE ty_lock_entry.
+    DATA temp34 TYPE z2ui5_cl_lock_manager=>ty_result.
+    DATA temp4 TYPE z2ui5_cl_lock_manager=>ty_result.
+    DATA temp1 TYPE z2ui5_cl_lock_manager=>ty_result.
+    DATA temp2 TYPE z2ui5_cl_lock_manager=>ty_result.
 
     " read before every wait, not only after it: with a timeout of 0 the
     " request was never read - no answer, an empty error text, and an
     " enqueue left queued instead of withdrawn
     DO.
       CLEAR ls_row.
-      SELECT SINGLE status, msg_text FROM z2ui5_t_05
-        WHERE req_id = @iv_req_id
-        INTO CORRESPONDING FIELDS OF @ls_row. "#EC CI_NOORDER
+      SELECT SINGLE status msg_text FROM z2ui5_t_05 INTO CORRESPONDING FIELDS OF ls_row
+        WHERE req_id = iv_req_id
+        . "#EC CI_NOORDER
       IF sy-subrc <> 0.
-        rs_result = VALUE #(
-          msg_type  = 'Error'
-          msg_title = 'Error'
-          msg_desc  = 'The request is no longer in the lock queue'
-        ).
+        CLEAR rs_result.
+        rs_result-msg_type = 'Error'.
+        rs_result-msg_title = 'Error'.
+        rs_result-msg_desc = 'The request is no longer in the lock queue'.
         RETURN.
       ENDIF.
 
@@ -1024,51 +1219,61 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       " A lock granted after the requester gave up would be held by nobody
       " who knows about it. Withdraw the request - unless the handler got to
       " it in the very last moment, then its answer counts.
-      UPDATE z2ui5_t_05 SET status   = @c_status_error,
+      UPDATE z2ui5_t_05 SET status   = c_status_error,
                             msg_text = 'Withdrawn - the background handler did not respond in time'
-        WHERE req_id = @iv_req_id
-          AND status = @c_status_pending.
+        WHERE req_id = iv_req_id
+          AND status = c_status_pending.
       IF sy-dbcnt = 1.
         COMMIT WORK.
-        rs_result = VALUE #(
-          msg_type  = 'Error'
-          msg_title = 'Timeout'
-          msg_desc  = 'Background handler did not respond in time - request withdrawn'
-        ).
+        CLEAR rs_result.
+        rs_result-msg_type = 'Error'.
+        rs_result-msg_title = 'Timeout'.
+        rs_result-msg_desc = 'Background handler did not respond in time - request withdrawn'.
         RETURN.
       ENDIF.
-      SELECT SINGLE status, msg_text FROM z2ui5_t_05
-        WHERE req_id = @iv_req_id
-        INTO CORRESPONDING FIELDS OF @ls_row. "#EC CI_NOORDER
+      SELECT SINGLE status msg_text FROM z2ui5_t_05 INTO CORRESPONDING FIELDS OF ls_row
+        WHERE req_id = iv_req_id
+        . "#EC CI_NOORDER
     ENDIF.
 
-    rs_result = SWITCH #( ls_row-status
-      WHEN c_status_active OR c_status_done
-      THEN VALUE #(
-             msg_type  = 'Success'
-             msg_title = 'OK'
-             msg_desc  = ls_row-msg_text
-           )
-      WHEN c_status_pending
-      THEN VALUE #(
-             msg_type  = 'Error'
-             msg_title = 'Timeout'
-             msg_desc  = 'Background handler did not respond in time - the request stays queued'
-           )
-      ELSE VALUE #(
-             msg_type  = 'Error'
-             msg_title = 'Error'
-             msg_desc  = ls_row-msg_text
-           )
-    ).
+
+    CLEAR temp34.
+    temp34-msg_type = 'Success'.
+    temp34-msg_title = 'OK'.
+    temp34-msg_desc = ls_row-msg_text.
+
+    CLEAR temp4.
+    temp4-msg_type = 'Error'.
+    temp4-msg_title = 'Timeout'.
+    temp4-msg_desc = 'Background handler did not respond in time - the request stays queued'.
+
+    CLEAR temp1.
+    temp1-msg_type = 'Error'.
+    temp1-msg_title = 'Error'.
+    temp1-msg_desc = ls_row-msg_text.
+
+    CASE ls_row-status.
+      WHEN c_status_active OR c_status_done.
+        temp2 = temp34.
+      WHEN c_status_pending.
+        temp2 = temp4.
+      WHEN OTHERS.
+        temp2 = temp1.
+    ENDCASE.
+    rs_result = temp2.
 
   ENDMETHOD.
 
 
   METHOD read_sm12_locks.
+        DATA lt_locks TYPE z2ui5_cl_lock_context=>ty_t_lock.
+    DATA temp35 TYPE z2ui5_cl_lock_manager=>ty_sm12_locks.
+    DATA ls_lock LIKE LINE OF lt_locks.
+      DATA temp36 LIKE LINE OF temp35.
 
     TRY.
-        DATA(lt_locks) = z2ui5_cl_lock_context=>lock_read(
+
+        lt_locks = z2ui5_cl_lock_context=>lock_read(
           lock_object = iv_lock_object
           user        = iv_user
         ).
@@ -1076,17 +1281,21 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
         RETURN.
     ENDTRY.
 
-    rt_locks = VALUE #(
-      FOR ls_lock IN lt_locks (
-        lock_object = ls_lock-lock_object
-        argument    = ls_lock-argument
-        user        = ls_lock-user
-        mode        = ls_lock-mode
-        client      = ls_lock-client
-        date        = ls_lock-date
-        time        = ls_lock-time
-      )
-    ).
+
+    CLEAR temp35.
+
+    LOOP AT lt_locks INTO ls_lock.
+
+      temp36-lock_object = ls_lock-lock_object.
+      temp36-argument = ls_lock-argument.
+      temp36-user = ls_lock-user.
+      temp36-mode = ls_lock-mode.
+      temp36-client = ls_lock-client.
+      temp36-date = ls_lock-date.
+      temp36-time = ls_lock-time.
+      INSERT temp36 INTO TABLE temp35.
+    ENDLOOP.
+    rt_locks = temp35.
 
   ENDMETHOD.
 
@@ -1096,10 +1305,14 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " An empty filter matches every row: each one is a range that stays empty
     " when its parameter is initial. (A host expression such as
     " @iv_status IS INITIAL in the WHERE clause needs 7.54.)
-    DATA lr_status   TYPE RANGE OF char10.
-    DATA lr_obj_type TYPE RANGE OF char30.
-    DATA lr_obj_key  TYPE RANGE OF char50.
-    DATA lr_user     TYPE RANGE OF sy-uname.
+    TYPES temp10 TYPE RANGE OF char10.
+DATA lr_status   TYPE temp10.
+    TYPES temp11 TYPE RANGE OF char30.
+DATA lr_obj_type TYPE temp11.
+    TYPES temp12 TYPE RANGE OF char50.
+DATA lr_obj_key  TYPE temp12.
+    TYPES temp13 TYPE RANGE OF sy-uname.
+DATA lr_user     TYPE temp13.
     DATA ls_status   LIKE LINE OF lr_status.
     DATA ls_obj_type LIKE LINE OF lr_obj_type.
     DATA ls_obj_key  LIKE LINE OF lr_obj_key.
@@ -1130,15 +1343,15 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       APPEND ls_user TO lr_user.
     ENDIF.
 
-    SELECT req_id, obj_type, obj_key, function, process, lock_mode,
-           status, created_by, created_at, msg_text
-      FROM z2ui5_t_05
-      WHERE status     IN @lr_status
-        AND obj_type   IN @lr_obj_type
-        AND obj_key    IN @lr_obj_key
-        AND created_by IN @lr_user
+    SELECT req_id obj_type obj_key function process lock_mode
+           status created_by created_at msg_text
+      FROM z2ui5_t_05 INTO TABLE rt_entries
+      WHERE status     IN lr_status
+        AND obj_type   IN lr_obj_type
+        AND obj_key    IN lr_obj_key
+        AND created_by IN lr_user
       ORDER BY created_at DESCENDING
-      INTO TABLE @rt_entries.
+      .
 
   ENDMETHOD.
 
