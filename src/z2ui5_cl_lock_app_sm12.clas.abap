@@ -82,7 +82,6 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
     IF client->check_on_event( `BUTTON_SEARCH` ).
       on_search( ).
-      client->view_model_update( ).
       RETURN.
     ENDIF.
 
@@ -94,7 +93,6 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
     IF client->check_on_event( `CONFIRM_DELETE` ).
       client->popup_destroy( ).
       on_delete( ).
-      client->view_model_update( ).
     ENDIF.
 
   ENDMETHOD.
@@ -356,7 +354,7 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
     form->tag( `Label`
         )->a( n = `text` v = `Lock Object`
         )->ele( `Input`
-        )->a( n = `value` v = mo_client->_bind_edit( mv_lock_object )
+        )->a( n = `value` v = mo_client->_bind( mv_lock_object )
         )->a( n = `submit` v = mo_client->_event( `BUTTON_SEARCH` )
         )->a( n = `suggestionItems` v = mo_client->_bind( mt_lock_objects )
         )->a( n = `showSuggestion` b = abap_true
@@ -369,7 +367,7 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
     form->tag( `Label`
         )->a( n = `text` v = `ABAP User`
         )->ele( `Input`
-        )->a( n = `value` v = mo_client->_bind_edit( mv_user )
+        )->a( n = `value` v = mo_client->_bind( mv_user )
         )->a( n = `submit` v = mo_client->_event( `BUTTON_SEARCH` )
         )->a( n = `suggestionItems` v = mo_client->_bind( mt_users )
         )->a( n = `showSuggestion` b = abap_true
@@ -382,7 +380,7 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
     form->tag( `Label`
         )->a( n = `text` v = `Client`
         )->ele( `Input`
-        )->a( n = `value` v = mo_client->_bind_edit( mv_client )
+        )->a( n = `value` v = mo_client->_bind( mv_client )
         )->a( n = `submit` v = mo_client->_event( `BUTTON_SEARCH` )
         )->a( n = `suggestionItems` v = mo_client->_bind( mt_clients )
         )->a( n = `showSuggestion` b = abap_true
@@ -398,7 +396,7 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
     " ----- Results table with multi-select -----
     DATA(tab) = page->ele( `Table`
-                    )->a( n = `items` v = |\{path: '{ mo_client->_bind_edit( val = mt_locks path = abap_true ) }', templateShareable: false\}|
+                    )->a( n = `items` v = |\{path: '{ mo_client->_bind( val = mt_locks path = abap_true ) }', templateShareable: false\}|
                     )->a( n = `mode` v = `MultiSelect`
                     )->ele( `headerToolbar`
                     )->ele( `OverflowToolbar`
