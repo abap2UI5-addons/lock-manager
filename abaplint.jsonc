@@ -18,7 +18,7 @@
       // left off - abap2UI5 CONVENTIONS §9
       "branch": "main",
       "folder": "/abap2UI5",
-      "files": "/src/**/*.*"
+      "files": "/src/0[0-2]/**/*.*"
     }
   ],
   "syntax": {
