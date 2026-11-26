@@ -396,7 +396,7 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
 
     " ----- Results table with multi-select -----
     DATA(tab) = page->ele( `Table`
-                    )->a( n = `items` v = |\{path: '{ mo_client->_bind( val = mt_locks path = abap_true ) }', templateShareable: false\}|
+                    )->a( n = `items` v = |\{path: '{ mo_client->_bind_path( mt_locks ) }', templateShareable: false\}|
                     )->a( n = `mode` v = `MultiSelect`
                     )->ele( `headerToolbar`
                     )->ele( `OverflowToolbar`
