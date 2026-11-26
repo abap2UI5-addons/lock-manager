@@ -215,14 +215,14 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
     lo_content->tag( `Label`
         )->a( n = `text` v = 'Sales Order (VBELN)' ).
     lo_content->tag( `Input`
-        )->a( n = `value` v = io_client->_bind_edit( mv_vbeln )
+        )->a( n = `value` v = io_client->_bind( mv_vbeln )
         )->a( n = `placeholder` v = 'e.g. 0050000005'
         )->a( n = `maxLength` v = '10' ).
 
     lo_content->tag( `Label`
         )->a( n = `text` v = 'Lock Mode' ).
     DATA(lo_modes) = lo_content->ele( `SegmentedButton`
-                         )->a( n = `selectedKey` v = io_client->_bind_edit( mv_mode )
+                         )->a( n = `selectedKey` v = io_client->_bind( mv_mode )
                          )->ele( `items` ).
     lo_modes->tag( `SegmentedButtonItem`
         )->a( n = `key` v = 'E'
@@ -240,19 +240,19 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
                         )->a( n = `alignItems` v = 'Center' ).
     lo_hbox->tag( `CheckBox`
         )->a( n = `text` v = 'Lock'
-        )->a( n = `selected` v = io_client->_bind_edit( mv_lock ) ).
+        )->a( n = `selected` v = io_client->_bind( mv_lock ) ).
     lo_hbox->tag( `CheckBox`
         )->a( n = `text` v = 'Promote'
-        )->a( n = `selected` v = io_client->_bind_edit( mv_promote ) ).
+        )->a( n = `selected` v = io_client->_bind( mv_promote ) ).
     lo_hbox->tag( `CheckBox`
         )->a( n = `text` v = 'Unlock'
-        )->a( n = `selected` v = io_client->_bind_edit( mv_unlock ) ).
+        )->a( n = `selected` v = io_client->_bind( mv_unlock ) ).
     lo_hbox->tag( `CheckBox`
         )->a( n = `text` v = 'Read SM12 Locks'
-        )->a( n = `selected` v = io_client->_bind_edit( mv_read_sm12 ) ).
+        )->a( n = `selected` v = io_client->_bind( mv_read_sm12 ) ).
     lo_hbox->tag( `CheckBox`
         )->a( n = `text` v = 'Read Z-Table'
-        )->a( n = `selected` v = io_client->_bind_edit( mv_read_ztab ) ).
+        )->a( n = `selected` v = io_client->_bind( mv_read_ztab ) ).
 
     " -- Message Strip -----------------------------------------
     " abap2ui5lint-disable-next-line unresolved-attribute-value -- mv_msg_type only ever holds Error, Warning, Information or Success, set here and in z2ui5_cl_lock_manager
