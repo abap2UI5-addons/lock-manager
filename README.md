@@ -351,7 +351,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 
 - **A running handler occupies one background work process** — for as long as any lock is held. Size the background work processes accordingly and use `p_time` to put an upper bound on forgotten locks.
 - **`_WAIT` holds up the queue.** The handler works through requests one by one; a request with `iv_wait = abap_true` that meets a foreign kernel lock blocks the others until the enqueue server's wait time is over. Keep `iv_timeout` above that time when you use it.
-- **Only generated lock modules.** The lock function must be an `ENQUEUE_*` module; the handler derives the `DEQUEUE_*` module from its name and reads its interface for types, `MODE_*`, `_SCOPE` and `_WAIT`.
+- **Only generated lock modules.** The lock function must be the `ENQUEUE_*` module of an active lock object (`/<namespace>/ENQUEUE_*` in a namespace) - `request( )` and the handler refuse any other function module, since it would run as the background user; the handler derives the `DEQUEUE_*` module from its name and reads its interface for types, `MODE_*`, `_SCOPE` and `_WAIT`.
 - **One user, one holder.** The registry identifies holders by SAP user name. The same user in two browser tabs is one holder, just as two SAP GUI sessions of one user would not lock each other out of a shared lock.
 - **SM12 shows the background user.** Use the registry (`read_lock_requests`, the sample app) to see who holds a lock; `SM12` shows the technical owner.
 - **Keep the data check at save time.** The lock manager coordinates lock-aware programs. The optimistic check on the data (timestamp, version, ETag) at save time remains your responsibility — see [section 5](#5-pessimistic-and-optimistic-locking).
