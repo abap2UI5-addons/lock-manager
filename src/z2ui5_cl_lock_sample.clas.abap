@@ -42,16 +42,21 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
   METHOD z2ui5_if_app~main.
 
-    CASE client->get( )-event.
-      WHEN 'EXECUTE'.
-        on_execute( ).
-      WHEN 'REFRESH'.
-        on_refresh( ).
-      WHEN 'CLEAR'.
-        on_clear( ).
-    ENDCASE.
-
-    build_view( client ).
+    " the view is drawn when the app comes on screen; an event only changes
+    " bound attributes, and the changed model is pushed back without
+    " rebuilding the view (focus and scroll position stay)
+    IF client->check_on_navigated( ).
+      build_view( client ).
+    ELSEIF client->check_on_event( ).
+      CASE client->get_event( ).
+        WHEN `EXECUTE`.
+          on_execute( ).
+        WHEN `REFRESH`.
+          on_refresh( ).
+        WHEN `CLEAR`.
+          on_clear( ).
+      ENDCASE.
+    ENDIF.
 
   ENDMETHOD.
 
