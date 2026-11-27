@@ -27,7 +27,9 @@ so a lock can outlive the request that took it.
 `z2ui5_cl_lock_context` is a **renamed copy** of `zabaputil_cl_util_context`
 from the [abap-util](https://github.com/abap-util/abap-util) master catalog,
 **trimmed to the members this repository uses** (the lock reads and the lock
-types) plus the private helpers, types and constants those need.
+types, and `msg_get_t`, which the constructor of `z2ui5_cx_lock_error` calls to
+render a message structure) plus the private helpers, types and constants those
+need.
 `z2ui5_cx_lock_error` is `zabaputil_cx_util_error`, renamed and copied as-is.
 abapGit has no dependency management, so utilities are vendored, not referenced.
 
