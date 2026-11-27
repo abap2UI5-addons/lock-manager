@@ -43,6 +43,15 @@ abapGit has no dependency management, so utilities are vendored, not referenced.
    (`prefer_raise_exception_new`, `cyclomatic_complexity`, `catch_and_raise`);
    do not reformat them.
 
+`.github/abap-util.json` names the copies and their masters for abap-util's
+`sync-check`: with abap-util checked out next to this repository,
+`node ../abap-util/.github/scripts/sync-check.mjs --consumer . --report`
+lists every method whose body or declaration differs from the master and
+every method only this copy has. `commit` is the abap-util commit the copies
+match: run the script without `--report` at that commit and it fails on any
+difference that is not named under `settled` or `own`. After a refresh, set
+`commit` to the commit the copies were taken from.
+
 ## Dependencies
 
 - [abap2UI5](https://github.com/abap2UI5/abap2UI5) — the framework
