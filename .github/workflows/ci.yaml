@@ -4,6 +4,9 @@ name: ci
 # abap2UI5-addons (rap-ext, .github/ci/README.md):
 #
 #   abaplint      Standard ABAP (abaplint.jsonc)
+#   npm-scripts   check:702 (a scratch copy of src/ downported and linted
+#                 with .github/abaplint/abap_702.jsonc - the 7.02 gate of a
+#                 pull request; ci-702 publishes the branch 702)
 #   rename        the namespace rename check (npm run rename)
 #   abap2ui5lint  the app classes and their views (abap2ui5lint.jsonc), on
 #                 main the README badges, published to the branch `badges`
@@ -38,5 +41,6 @@ jobs:
     uses: abap2UI5-addons/rap-ext/.github/workflows/addon-check.yaml@d599eb227a476d120b473ae3b707fe983ab3e441 # ci-v1.1.0
     with:
       abaplint: '["./abaplint.jsonc"]'
+      npm-scripts: '["check:702"]'
       rename: true
       canary: ${{ github.event_name == 'schedule' }}

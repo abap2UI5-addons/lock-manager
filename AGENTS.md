@@ -81,7 +81,10 @@ pinned by commit in the `uses:` lines and moved by `bump-deps`):
   one job per check: `check / abaplint (./abaplint.jsonc)`, `check / rename`
   and `check / abap2ui5lint` (render gate on; on `main` the two README
   badges are published to the branch `badges`). These are the required
-  status checks of the branch protection.
+  status checks of the branch protection. Also `check / npm run check:702`,
+  the 7.02 gate of a pull request (`.github/scripts/check-702.sh` downports
+  a scratch copy of `src/` in `build/702` and lints it with
+  `.github/abaplint/abap_702.jsonc`; `src/` is never rewritten).
 * `ci-702` - on every push to `main` `npm run auto_downport`, a force-push
   to the branch `702`, then abaplint on that branch
   (`.github/abaplint/abap_702.jsonc`). Never commit to `702` by hand.
