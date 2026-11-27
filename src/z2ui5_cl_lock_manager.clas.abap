@@ -159,12 +159,29 @@ CLASS z2ui5_cl_lock_manager DEFINITION PUBLIC FINAL CREATE PUBLIC.
         RETURNING
           VALUE(rv_success) TYPE abap_bool,
 
+      " the message of a failed lock module call, from sy-msg*
+      call_message
+        IMPORTING
+          iv_function   TYPE clike
+          iv_subrc      TYPE sy-subrc
+        RETURNING
+          VALUE(rv_msg) TYPE string,
+
       create_value
         IMPORTING
           iv_type         TYPE clike
           iv_value        TYPE any
         RETURNING
           VALUE(rr_value) TYPE REF TO data,
+
+      " the generated module of an active lock object: ENQUEUE_<object> or
+      " DEQUEUE_<object>, /<ns>/ENQUEUE_<object> in a namespace
+      is_lock_function
+        IMPORTING
+          iv_function     TYPE clike
+          iv_enqueue      TYPE abap_bool
+        RETURNING
+          VALUE(rv_valid) TYPE abap_bool,
 
       to_dequeue
         IMPORTING
@@ -253,6 +270,10 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
       THEN `iv_obj_type and iv_obj_key are mandatory`
       WHEN lv_process = c_process_enqueue AND iv_function IS INITIAL
       THEN `iv_function is mandatory for an enqueue`
+      WHEN lv_process = c_process_enqueue
+       AND is_lock_function( iv_function = iv_function
+                             iv_enqueue  = abap_true ) = abap_false
+      THEN |iv_function { iv_function } is not the ENQUEUE_ module of a lock object|
       WHEN lv_process = c_process_enqueue
        AND lv_mode <> c_mode_exclusive
        AND lv_mode <> c_mode_shared
@@ -709,6 +730,16 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     CLEAR ev_msg.
     DATA(lv_function) = CONV char30( to_upper( iv_function ) ).
 
+    " the name comes from the request and the module runs as the background
+    " user - nothing but the lock module of a lock object is called
+    IF is_lock_function( iv_function = lv_function
+                         iv_enqueue  = iv_enqueue ) = abap_false.
+      ev_msg = |{ lv_function } is not the { COND #( WHEN iv_enqueue = abap_true
+                                                     THEN `ENQUEUE_`
+                                                     ELSE `DEQUEUE_` ) } module of a lock object|.
+      RETURN.
+    ENDIF.
+
     " the parameters are always the ones the lock was taken with, so a
     " release or a recovery hits exactly the same lock argument
     SELECT name, type, value FROM z2ui5_t_06
@@ -777,24 +808,30 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
           EXCEPTION-TABLE lt_exception.
         lv_subrc = sy-subrc.
 
-        CASE lv_subrc.
-          WHEN 0.
-            rv_success = abap_true.
-          WHEN 1.
-            " the kernel names the holder in the first message variable
-            ev_msg = |Locked by { sy-msgv1 }|.
-          WHEN OTHERS.
-            IF sy-msgid IS NOT INITIAL.
-              MESSAGE ID sy-msgid TYPE 'E' NUMBER sy-msgno
-                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4 INTO ev_msg.
-            ELSE.
-              ev_msg = |{ lv_function } failed with sy-subrc { lv_subrc }|.
-            ENDIF.
-        ENDCASE.
+        rv_success = xsdbool( lv_subrc = 0 ).
+        IF rv_success = abap_false.
+          ev_msg = call_message( iv_function = lv_function
+                                 iv_subrc    = lv_subrc ).
+        ENDIF.
 
       CATCH cx_root INTO DATA(lx_error).
         ev_msg = |{ lv_function }: { lx_error->get_text( ) }|.
     ENDTRY.
+
+  ENDMETHOD.
+
+
+  METHOD call_message.
+
+    IF iv_subrc = 1.
+      " the kernel names the holder in the first message variable
+      rv_msg = |Locked by { sy-msgv1 }|.
+    ELSEIF sy-msgid IS NOT INITIAL.
+      MESSAGE ID sy-msgid TYPE 'E' NUMBER sy-msgno
+        WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4 INTO rv_msg.
+    ELSE.
+      rv_msg = |{ iv_function } failed with sy-subrc { iv_subrc }|.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -815,6 +852,39 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
     ASSIGN rr_value->* TO <lv_value>.
     <lv_value> = iv_value.
+
+  ENDMETHOD.
+
+
+  METHOD is_lock_function.
+
+    DATA lv_function  TYPE string.
+    DATA lv_namespace TYPE string.
+    DATA lv_object    TYPE string.
+    DATA lv_viewname  TYPE dd25l-viewname.
+
+    lv_function = to_upper( condense( iv_function ) ).
+    IF iv_enqueue = abap_true.
+      FIND REGEX `^(/[^/]+/)?ENQUEUE_(\S+)$` IN lv_function SUBMATCHES lv_namespace lv_object.
+    ELSE.
+      FIND REGEX `^(/[^/]+/)?DEQUEUE_(\S+)$` IN lv_function SUBMATCHES lv_namespace lv_object.
+    ENDIF.
+    IF sy-subrc <> 0.
+      RETURN.
+    ENDIF.
+
+    " a name longer than a lock object name must not match a shorter one
+    DATA(lv_name) = lv_namespace && lv_object.
+    lv_viewname = lv_name.
+    IF lv_viewname <> lv_name.
+      RETURN.
+    ENDIF.
+
+    SELECT SINGLE @abap_true FROM dd25l
+      WHERE viewname = @lv_viewname
+        AND aggtype  = 'E'
+        AND as4local = 'A'
+      INTO @rv_valid. "#EC CI_NOORDER
 
   ENDMETHOD.
 
