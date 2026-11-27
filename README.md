@@ -49,7 +49,7 @@ What it is not:
 - Standard ABAP 7.50 or higher; NetWeaver 7.02 with the downported branch `702`
 - [abap2UI5](https://github.com/abap2UI5/abap2UI5)
 - a background user that may set the locks you request, and one background
-  work process while any lock is held (see [Notes & limits](#notes--limits))
+  work process while any lock is held (see [Limitations](#limitations))
 
 **Renamed (2026-11).** The SM12-style admin app `z2ui5_cl_app_sm12` is `z2ui5_cl_lock_app_sm12` now, in the addon's own `lock` segment. After the pull abapGit lists the old class as deleted in the repository: delete it, and update `?app_start=` links.
 
@@ -171,7 +171,7 @@ DATA(lt_held) = z2ui5_cl_lock_manager=>read_lock_requests(
 ).
 ```
 
-## What you get
+## Features
 
 - A **single API** (`z2ui5_cl_lock_manager=>request`) for any generated `ENQUEUE_*` lock module, with any number of key parameters
 - **Three lock modes** — exclusive (`E`), shared (`S`) and optimistic (`O`) — plus **promotion** (`R`) of an optimistic lock to an exclusive one
@@ -347,7 +347,7 @@ Newer ABAP platform releases add **durable locks** to the SAP lock concept — l
 | `z2ui5_cl_lock_app_sm12` | abap2UI5 admin app — browse and delete kernel lock entries (SM12-style, with authorization checks) |
 | `z2ui5_cl_lock_context`, `z2ui5_cx_lock_error` | Utility context (lock reads and types) and its exception — vendored copies from [abap-util](https://github.com/abap-util/abap-util) |
 
-## Notes & limits
+## Limitations
 
 - **A running handler occupies one background work process** — for as long as any lock is held. Size the background work processes accordingly and use `p_time` to put an upper bound on forgotten locks.
 - **`_WAIT` holds up the queue.** The handler works through requests one by one; a request with `iv_wait = abap_true` that meets a foreign kernel lock blocks the others until the enqueue server's wait time is over. Keep `iv_timeout` above that time when you use it.
