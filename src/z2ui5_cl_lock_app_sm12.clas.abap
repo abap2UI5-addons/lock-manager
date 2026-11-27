@@ -41,6 +41,10 @@ CLASS z2ui5_cl_lock_app_sm12 DEFINITION
     DATA mt_clients      TYPE ty_suggestions.
 
   PROTECTED SECTION.
+    "! the most lock entries a search shows - the list is bound, so every
+    "! row goes to the browser and into the draft on each roundtrip
+    CONSTANTS c_max_locks TYPE i VALUE 1000.
+
     DATA mo_client TYPE REF TO z2ui5_if_client.
 
     METHODS view_display.
@@ -169,6 +173,9 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
     DATA ls_row  LIKE LINE OF mt_locks.
     CLEAR mt_locks.
     LOOP AT lt_locks INTO ls_lock.
+      IF lines( mt_locks ) >= c_max_locks.
+        EXIT.
+      ENDIF.
       CLEAR ls_row.
       ls_row-gname   = ls_lock-lock_object.
       ls_row-garg    = ls_lock-argument.
@@ -181,6 +188,13 @@ CLASS z2ui5_cl_lock_app_sm12 IMPLEMENTATION.
       ls_row-gusrvb  = ls_lock-owner_vb.
       APPEND ls_row TO mt_locks.
     ENDLOOP.
+
+    IF lines( lt_locks ) > c_max_locks.
+      mo_client->message_box_display(
+        text = |{ lines( lt_locks ) } locks match the filter, only the first { c_max_locks } are shown. Refine the filter (lock object, user, client).|
+        type = `warning` ).
+      RETURN.
+    ENDIF.
 
     mo_client->message_toast_display( |Found { lines( mt_locks ) } lock(s).| ).
 
