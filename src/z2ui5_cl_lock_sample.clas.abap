@@ -16,7 +16,9 @@ CLASS z2ui5_cl_lock_sample DEFINITION PUBLIC CREATE PUBLIC.
 
     " Result message strip
     DATA mv_msg_text     TYPE string.
-    DATA mv_msg_type     TYPE string.
+    " never empty: the strip's type is a MessageType, and UI5 refuses an
+    " empty one - the view would not be shown
+    DATA mv_msg_type     TYPE string VALUE `Information`.
     DATA mv_msg_visible  TYPE abap_bool.
 
     " Table data
@@ -40,24 +42,30 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
   METHOD z2ui5_if_app~main.
 
-    CASE client->get( )-event.
-      WHEN 'EXECUTE'.
-        on_execute( ).
-      WHEN 'REFRESH'.
-        on_refresh( ).
-      WHEN 'CLEAR'.
-        on_clear( ).
-    ENDCASE.
-
-    build_view( client ).
+    " the view is drawn when the app comes on screen; an event only changes
+    " bound attributes, and the changed model is pushed back without
+    " rebuilding the view (focus and scroll position stay)
+    IF client->check_on_navigated( ).
+      build_view( client ).
+    ELSEIF client->check_on_event( ).
+      CASE client->get_event( ).
+        WHEN `EXECUTE`.
+          on_execute( ).
+        WHEN `REFRESH`.
+          on_refresh( ).
+        WHEN `CLEAR`.
+          on_clear( ).
+      ENDCASE.
+    ENDIF.
 
   ENDMETHOD.
 
 
   METHOD on_execute.
 
-    CLEAR: mv_msg_text, mv_msg_type, mv_msg_visible,
+    CLEAR: mv_msg_text, mv_msg_visible,
            mt_sm12, mt_entries.
+    mv_msg_type = `Information`.
 
     IF mv_vbeln IS INITIAL.
       mv_msg_type    = 'Error'.
@@ -156,9 +164,10 @@ CLASS z2ui5_cl_lock_sample IMPLEMENTATION.
 
     CLEAR: mv_vbeln, mv_lock, mv_promote, mv_unlock,
            mv_read_sm12, mv_read_ztab,
-           mv_msg_text, mv_msg_type, mv_msg_visible,
+           mv_msg_text, mv_msg_visible,
            mt_sm12, mt_entries.
 
+    mv_msg_type  = `Information`.
     mv_mode      = 'E'.
     mv_lock      = abap_true.
     mv_read_sm12 = abap_true.
