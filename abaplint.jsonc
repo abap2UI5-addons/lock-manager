@@ -108,6 +108,7 @@
       "severity": "Error",
       "systemCall": true
     },
+    "db_operation_in_loop": true,
     "description_empty": true,
     "downport": true,
     "dynpro_checks": true,
@@ -230,6 +231,14 @@
       "severity": "Error"
     },
     "rfc_error_handling": true,
+    "select_performance": {
+      // SELECT * only reads whole rows of the registry z2ui5_t_05 into
+      // structures of its type, which the process_* methods hand on whole
+      // (function, mode, owner, status) - naming the twelve columns would
+      // read the same. ENDSELECT stays reported.
+      "selectStar": false,
+      "endSelect": true
+    },
     "select_single_full_key": true,
     "selection_screen_naming": true,
     "sequential_blank": {
