@@ -225,6 +225,21 @@ CLASS z2ui5_cl_lock_manager DEFINITION PUBLIC FINAL CREATE PUBLIC.
         RETURNING
           VALUE(rv_running) TYPE abap_bool,
 
+      " marks the holders of an object and mode lost - one UPDATE per object
+      " recover_locks could not lock again, each with its own message
+      mark_lost
+        IMPORTING
+          is_row  TYPE z2ui5_t_05
+          iv_text TYPE char200,
+
+      " the status and message of a request, initial when it is gone -
+      " wait_for_result polls it, once per second
+      read_request_state
+        IMPORTING
+          iv_req_id     TYPE guid_32
+        RETURNING
+          VALUE(rs_row) TYPE ty_lock_entry,
+
       write_request
         IMPORTING
           iv_function      TYPE clike
@@ -532,9 +547,10 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
           AND created_by = @is_req-created_by
           AND status     = @c_status_lost
         ORDER BY created_at DESCENDING
-        INTO @DATA(lv_lost)
+        INTO TABLE @DATA(lt_lost_text)
         UP TO 1 ROWS.
-      ENDSELECT.
+      DATA lv_lost TYPE z2ui5_t_05-msg_text.
+      READ TABLE lt_lost_text INDEX 1 INTO lv_lost.
       finish_request( is_req    = is_req
                       iv_status = c_status_error
                       iv_msg    = COND string( WHEN lv_lost IS NOT INITIAL
@@ -573,13 +589,21 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " the kernel deletes the optimistic locks of other owners on promotion;
     " here all of them belong to the handler, so the registry does it
     lv_msg = |Changed by { is_req-created_by } first|.
+    DATA lt_lost TYPE RANGE OF z2ui5_t_05-req_id.
+    DATA ls_lost LIKE LINE OF lt_lost.
+    ls_lost-sign   = 'I'.
+    ls_lost-option = 'EQ'.
     LOOP AT lt_active INTO ls_held
          WHERE created_by <> is_req-created_by
            AND lock_mode  =  c_mode_optimistic.
+      ls_lost-low = ls_held-req_id.
+      APPEND ls_lost TO lt_lost.
+    ENDLOOP.
+    IF lt_lost IS NOT INITIAL.
       UPDATE z2ui5_t_05 SET status   = @c_status_lost,
                             msg_text = @lv_msg
-        WHERE req_id = @ls_held-req_id.
-    ENDLOOP.
+        WHERE req_id IN @lt_lost.
+    ENDIF.
 
     finish_request( is_req    = is_req
                     iv_status = c_status_done
@@ -679,12 +703,8 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
                              IMPORTING ev_msg      = lv_msg ) = abap_false.
         " someone took the object while no handler was running
         lv_text = |Lost while no handler ran - { lv_msg }|.
-        UPDATE z2ui5_t_05 SET status   = @c_status_lost,
-                              msg_text = @lv_text
-          WHERE obj_type  = @ls_row-obj_type
-            AND obj_key   = @ls_row-obj_key
-            AND lock_mode = @ls_row-lock_mode
-            AND status    = @c_status_active.
+        mark_lost( is_row  = ls_row
+                   iv_text = lv_text ).
       ENDIF.
 
     ENDLOOP.
@@ -1029,16 +1049,22 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
 
     INSERT z2ui5_t_05 FROM @ls_req.
 
-    DATA ls_p   TYPE ty_param.
-    DATA ls_row TYPE z2ui5_t_06.
+    DATA ls_p    TYPE ty_param.
+    DATA ls_row  TYPE z2ui5_t_06.
+    DATA lt_rows TYPE STANDARD TABLE OF z2ui5_t_06 WITH DEFAULT KEY.
     LOOP AT it_params INTO ls_p.
       CLEAR ls_row.
       ls_row-req_id = rv_req_id.
       ls_row-name   = to_upper( ls_p-name ).
       ls_row-type   = to_upper( ls_p-type ).
       ls_row-value  = ls_p-value.
-      INSERT z2ui5_t_06 FROM @ls_row.
+      APPEND ls_row TO lt_rows.
     ENDLOOP.
+    " one INSERT for all parameters; a name given twice keeps its first
+    " value, as the single-row INSERT did
+    IF lt_rows IS NOT INITIAL.
+      INSERT z2ui5_t_06 FROM TABLE @lt_rows ACCEPTING DUPLICATE KEYS.
+    ENDIF.
 
     " the handler runs in another session and must see the row
     COMMIT WORK.
@@ -1063,6 +1089,27 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD mark_lost.
+
+    UPDATE z2ui5_t_05 SET status   = @c_status_lost,
+                          msg_text = @iv_text
+      WHERE obj_type  = @is_row-obj_type
+        AND obj_key   = @is_row-obj_key
+        AND lock_mode = @is_row-lock_mode
+        AND status    = @c_status_active.
+
+  ENDMETHOD.
+
+
+  METHOD read_request_state.
+
+    SELECT SINGLE status, msg_text FROM z2ui5_t_05
+      WHERE req_id = @iv_req_id
+      INTO CORRESPONDING FIELDS OF @rs_row. "#EC CI_NOORDER
+
+  ENDMETHOD.
+
+
   METHOD wait_for_result.
 
     DATA ls_row TYPE ty_lock_entry.
@@ -1071,11 +1118,8 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
     " request was never read - no answer, an empty error text, and an
     " enqueue left queued instead of withdrawn
     DO.
-      CLEAR ls_row.
-      SELECT SINGLE status, msg_text FROM z2ui5_t_05
-        WHERE req_id = @iv_req_id
-        INTO CORRESPONDING FIELDS OF @ls_row. "#EC CI_NOORDER
-      IF sy-subrc <> 0.
+      ls_row = read_request_state( iv_req_id ).
+      IF ls_row IS INITIAL.
         rs_result = VALUE #(
           msg_type  = 'Error'
           msg_title = 'Error'
@@ -1107,9 +1151,11 @@ CLASS z2ui5_cl_lock_manager IMPLEMENTATION.
         ).
         RETURN.
       ENDIF.
-      SELECT SINGLE status, msg_text FROM z2ui5_t_05
-        WHERE req_id = @iv_req_id
-        INTO CORRESPONDING FIELDS OF @ls_row. "#EC CI_NOORDER
+      " the handler's answer - a request gone meanwhile keeps the last state
+      DATA(ls_now) = read_request_state( iv_req_id ).
+      IF ls_now IS NOT INITIAL.
+        ls_row = ls_now.
+      ENDIF.
     ENDIF.
 
     rs_result = SWITCH #( ls_row-status
